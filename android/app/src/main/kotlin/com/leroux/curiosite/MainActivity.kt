@@ -1,0 +1,6 @@
+package com.leroux.curiosite
+
+import io.flutter.embedding.android.FlutterActivity
+
+class MainActivity: FlutterActivity() {
+}
