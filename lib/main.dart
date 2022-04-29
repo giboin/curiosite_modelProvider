@@ -1,6 +1,8 @@
 
 import 'dart:async';
+import 'package:curiosite/historique.dart';
 import 'package:curiosite/parametres.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -22,9 +24,13 @@ class _MyAppState extends State<MyApp> {
   late InAppWebViewController _webViewController;
   String url = "";
   double progress = 0;
-  Icon pcVersion=const Icon(Icons.check_box_outline_blank, color: Colors.black,);
-  TextEditingController searchText = TextEditingController();
+  bool pcVersion =  UserPreferredContentMode.RECOMMENDED==UserPreferredContentMode.DESKTOP;
+  bool searchMode=false;
+  TextEditingController searchBarTextController = TextEditingController();
+  String _foundMatches="0/0";
   late String searchEngine;
+
+  get pcVersionIcon => pcVersion?const Icon(Icons.check_box_rounded, color: Colors.black,):const Icon(Icons.check_box_outline_blank, color: Colors.black,);
 
   Future<void> _getEngine() async {
     final prefs = await SharedPreferences.getInstance();
@@ -44,10 +50,16 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
-    searchText.text=url;
+    searchBarTextController.text=url;
     return MaterialApp(
         home: WillPopScope(
             onWillPop: () async {
+              if(searchMode){
+                setState(() {
+                  clearFindWorld();
+                });
+                return false;
+              }
               if (await _webViewController.canGoBack()){
                 _webViewController.goBack();
                 return false;
@@ -55,33 +67,7 @@ class _MyAppState extends State<MyApp> {
               return true;
             },
             child: Builder(builder:(context)=>Scaffold(
-              appBar: AppBar(
-                  leading:IconButton(
-                    icon:const Icon(Icons.arrow_back),
-                    onPressed: (){
-                      _webViewController.goBack();
-                    },
-                  ),
-                  title: Container(
-                    width: double.infinity,
-                    height: 40,
-                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(5)),
-
-                    child: Center(
-                      child: searchBar(),
-                    ),
-                  ),
-                  actions: <Widget>[
-                    const Icon(Icons.brightness_1_outlined),
-                    appbarMenu(context),
-                  ]
-              ),
-
-
-
-//=======================================================
-//                web View
-//=======================================================
+              appBar: appBar(),
               body: Column(children: <Widget>[
                 Container(
                     child: progress < 1.0
@@ -89,14 +75,17 @@ class _MyAppState extends State<MyApp> {
                         : Container()),
                 Expanded(
                   child: InAppWebView(
-                    initialOptions: InAppWebViewGroupOptions(
-                        crossPlatform: InAppWebViewOptions(
-                            preferredContentMode: pcVersion.icon==Icons.check_box_outline_blank? UserPreferredContentMode.MOBILE : UserPreferredContentMode.DESKTOP
-                        )
-                    ),
+                    onFindResultReceived: (controller, activeMatchOrdinal, numberOfMatches, isDoneCounting) {
+                      if (isDoneCounting) {
+                        setState(() {
+                          _foundMatches = numberOfMatches>0?(activeMatchOrdinal+1).toString() + "/" +
+                              numberOfMatches.toString():"0/0";
+                        });
+                      }
+                    },
+                    initialUrlRequest: URLRequest(url:Uri(path: "flutter.dev/")),
                     onWebViewCreated: (InAppWebViewController controller) {
                       _webViewController = controller;
-                      _webViewController.loadUrl(urlRequest: URLRequest(url:Uri(path: "flutter.dev/")));
                     },
                     onLoadStart: (controller, url) {
                       setState(() {
@@ -126,8 +115,9 @@ class _MyAppState extends State<MyApp> {
     return PopupMenuButton(
         onSelected: (result){
           switch(result){
+            case 3: _openHistory(context); break;
+            case 5: _openSearchMode(); break;
             case 7: _openSettings(context); break;
-            case 1: break;
           }
         },
         itemBuilder: (context)=>[
@@ -203,11 +193,13 @@ class _MyAppState extends State<MyApp> {
           PopupMenuItem(
               value:6,
               onTap: (){
-                if (pcVersion.icon==Icons.check_box_outline_blank){
-                  pcVersion=const Icon(Icons.check_box, color: Colors.black,);
-                }else{
-                  pcVersion=const Icon(Icons.check_box_outline_blank, color: Colors.black,);
-                }
+                pcVersion=!pcVersion;
+                _webViewController.setOptions(options: InAppWebViewGroupOptions(
+                    crossPlatform: InAppWebViewOptions(
+                        preferredContentMode: pcVersion? UserPreferredContentMode.DESKTOP : UserPreferredContentMode.MOBILE
+                    )
+                ),);
+                _webViewController.reload();
               },
               child: Row(
                 children: [
@@ -215,7 +207,7 @@ class _MyAppState extends State<MyApp> {
                   Container(margin: const EdgeInsets.only(right: 20),),
                   const Text("Version pour ordi"),
                   Container(margin: const EdgeInsets.only(right: 20),),
-                  pcVersion,
+                  pcVersionIcon,
                 ],
               )
           ),
@@ -238,10 +230,73 @@ class _MyAppState extends State<MyApp> {
     await Navigator.push(ctx, MaterialPageRoute(builder: (context) => Parametres())).then((value) => _getEngine());
   }
 
+  Future<void> _openHistory(BuildContext ctx) async {
+    await Navigator.push(ctx, MaterialPageRoute(builder: (context) => Historique()));
+  }
+
+  void _openSearchMode(){
+    setState(() {
+      searchMode=true;
+    });
+  }
+
+
+  PreferredSizeWidget appBar(){
+    if(!searchMode){
+      return AppBar(
+          title: Container(
+            width: double.infinity,
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(5)),
+
+            child: Center(
+              child: searchBar(),
+            ),
+          ),
+          actions: <Widget>[
+            const Icon(Icons.brightness_1_outlined),
+            appbarMenu(context),
+          ]
+      );
+    }
+    return AppBar(
+      title: TextField(
+
+        decoration: InputDecoration(suffixText: _foundMatches),
+        onChanged: (string){
+          _webViewController.findAllAsync(find: string);
+        },
+      ),
+      actions: [
+        IconButton(
+            onPressed: (){
+              _webViewController.findNext(forward: false);
+            },
+            icon: const Icon(Icons.keyboard_arrow_up_rounded)
+        ),
+        IconButton(
+            onPressed: (){
+              _webViewController.findNext(forward: true);
+            },
+            icon: const Icon(Icons.keyboard_arrow_down_rounded)
+        ),
+        IconButton(onPressed: (){
+          setState(() {
+            clearFindWorld();
+          });
+        }, icon: const Icon(Icons.clear)),
+      ],
+    );
+  }
+
+  void clearFindWorld(){
+    searchMode=false;
+    _webViewController.findAllAsync(find: "");
+  }
+
 
   Widget searchBar(){
     return TextField(
-      controller: searchText,
+      controller: searchBarTextController,
       keyboardType: TextInputType.url,
       onSubmitted: (text){
         search(text);
@@ -250,13 +305,13 @@ class _MyAppState extends State<MyApp> {
           suffixIcon: IconButton(
             icon: const Icon(Icons.clear),
             onPressed: () {
-              searchText.text="";
+              searchBarTextController.text="";
             },
           ),
           prefixIcon: IconButton(
             icon: const Icon(Icons.search),
             onPressed: () {
-              search(searchText.text);
+              search(searchBarTextController.text);
             },
           ),
           hintText: 'Search...',
