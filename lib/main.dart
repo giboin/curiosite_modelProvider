@@ -1,5 +1,6 @@
 
 import 'dart:async';
+import 'package:curiosite/assets/favoris.dart';
 import 'package:curiosite/historique.dart';
 import 'package:curiosite/parametres.dart';
 import 'package:flutter/cupertino.dart';
@@ -42,7 +43,9 @@ class _MyAppState extends State<MyApp> {
   FocusNode searchBarFocusNode = FocusNode();
   String _foundMatches="0/0";
   List<String> historique= [];
+  List<String> _favoris=[];
   String searchEngine='google';
+  Icon starIcon = const Icon(Icons.star_border);
 
   get pcVersionIcon => pcVersion?const Icon(Icons.check_box_rounded, color: Colors.black,):const Icon(Icons.check_box_outline_blank, color: Colors.black,);
 
@@ -72,13 +75,29 @@ class _MyAppState extends State<MyApp> {
     historique=list;
   }
 
+  Future<void> _getFavoris() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!prefs.containsKey('favoris')) {
+      return;
+    }
+    setState(() {
+      _favoris = prefs.getStringList('favoris') ?? ["erreur"];
+    });
+  }
+
+  Future<void> _saveFavoris(List<String> list) async {
+    final prefs = await SharedPreferences.getInstance();
+    prefs.setStringList('favoris', list);
+    _favoris=list;
+  }
+
   @override
   void initState() {
     super.initState();
     _getEngine();
     _getHistory();
+    _getFavoris();
     searchBarFocusNode.addListener(() {
-      print("=> ${searchBarFocusNode.hasFocus}");
       if(!searchBarFocusNode.hasFocus){
         searchBarTextController.text=url;
       }
@@ -95,65 +114,71 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     searchBarTextController.text=url;
     return WillPopScope(
-            onWillPop: () async {
-              if(searchMode){
-                setState(() {
-                  clearFindWorld();
-                });
-                return false;
-              }
-              if (await _webViewController.canGoBack()){
-                _webViewController.goBack();
-                return false;
-              }
-              return true;
-            },
-            child: Builder(builder:(context)=>Scaffold(
-              appBar: appBar(context),
-              body: Column(children: <Widget>[
-                Container(
-                    child: progress < 1.0
-                        ? LinearProgressIndicator(value: progress)
-                        : Container()),
-                Expanded(
-                  child: InAppWebView(
-                    onLoadStart:(_webViewController, uri){
-                      setState(() {
-                        this.url = url.toString();
-                      });
-                    },
-                    onFindResultReceived: (controller, activeMatchOrdinal, numberOfMatches, isDoneCounting) {
-                      if (isDoneCounting) {
-                        setState(() {
-                          _foundMatches = numberOfMatches>0?(activeMatchOrdinal+1).toString() + "/" +
-                              numberOfMatches.toString():"0/0";
-                        });
+        onWillPop: () async {
+          if(searchMode){
+            setState(() {
+              clearFindWorld();
+            });
+            return false;
+          }
+          if (await _webViewController.canGoBack()){
+            _webViewController.goBack();
+            return false;
+          }
+          return true;
+        },
+        child: Builder(builder:(context)=>Scaffold(
+          appBar: appBar(context),
+          body: Column(children: <Widget>[
+            Container(
+                child: progress < 1.0
+                    ? LinearProgressIndicator(value: progress)
+                    : Container()),
+            Expanded(
+              child: InAppWebView(
+                onLoadStart:(_webViewController, uri){
+                  setState(() {
+                    //url = uri.toString();
+                  });
+                },
+                onFindResultReceived: (controller, activeMatchOrdinal, numberOfMatches, isDoneCounting) {
+                  if (isDoneCounting) {
+                    setState(() {
+                      _foundMatches = numberOfMatches>0?(activeMatchOrdinal+1).toString() + "/" +
+                          numberOfMatches.toString():"0/0";
+                    });
+                  }
+                },
+                initialUrlRequest: URLRequest(url:Uri(path: "flutter.dev/")),
+                onWebViewCreated: (InAppWebViewController controller) {
+                  _webViewController = controller;
+                },
+                onLoadStop: (controller, url) async {
+                  var title = await _webViewController.getTitle();
+                  var date = DateFormat("yyyy-MM-dd HH:mm:ss").format(DateTime.now());
+                  setState(() {
+                    this.url = url.toString();
+                    starIcon=const Icon(Icons.star_border);
+                    for(String str in _favoris){
+                      if(str.substring(str.indexOf("\n"),str.length)==(url.toString())){
+                        starIcon=const Icon(Icons.star);
                       }
-                    },
-                    initialUrlRequest: URLRequest(url:Uri(path: "flutter.dev/")),
-                    onWebViewCreated: (InAppWebViewController controller) {
-                      _webViewController = controller;
-                    },
-                    onLoadStop: (controller, url) async {
-                      var title = await _webViewController.getTitle();
-                      var date = DateFormat("yyyy-MM-dd HH:mm:ss").format(DateTime.now());
-                      setState(() {
-                        this.url = url.toString();
-                      });
-                      await _getHistory();
-                      historique.add("$date$title\n$url");
-                      _saveHistory(historique);
-                    },
-                    onProgressChanged: (InAppWebViewController controller, int progress) {
-                      setState(() {
-                        this.progress = progress / 100;
-                      });
-                    },
-                  ),
-                ),
-              ]),
+                    }
+                  });
+                  await _getHistory();
+                  historique.add("$date$title\n$url");
+                  _saveHistory(historique);
+                },
+                onProgressChanged: (InAppWebViewController controller, int progress) {
+                  setState(() {
+                    this.progress = progress / 100;
+                  });
+                },
+              ),
             ),
-            )
+          ]),
+        ),
+        )
 
     );
   }
@@ -163,6 +188,7 @@ class _MyAppState extends State<MyApp> {
         onSelected: (result) async {
           switch(result){
             case 3: _openHistory(context); break;
+            case 4: _openFavoris(context); break;
             case 5: _openSearchMode(); break;
             case 7: await _openSettings(context); break;
           }
@@ -182,6 +208,95 @@ class _MyAppState extends State<MyApp> {
                       child:const Icon(Icons.refresh),
                       onPressed: (){
                         _webViewController.reload();
+                      }
+                  ),
+                  MaterialButton(
+                      key: UniqueKey(),
+                      child:starIcon,
+                      onPressed: ()async{
+                        var title = await _webViewController.getTitle();
+                        var url = (await _webViewController.getUrl()).toString();
+                        Navigator.pop(context);
+                        if(_favoris.contains("$title\n$url")) {
+                          setState(() {
+                            starIcon = const Icon(Icons.star_border);
+                            _favoris.remove("$title\n$url");
+                          });
+                          _saveFavoris(_favoris);
+                        }
+                        else {
+                          showBottomSheet(
+                              context: context,
+                              builder: (BuildContext context) {
+                                TextEditingController titleController = TextEditingController();
+                                titleController.text = title ?? "";
+                                TextEditingController urlController = TextEditingController();
+                                urlController.text = url ;
+                                return SingleChildScrollView(
+                                    child:Container(
+                                        margin: const EdgeInsets.symmetric(vertical: 10,horizontal: 30),
+                                        child: Column(
+                                          children: [
+                                            const Text("Ajouter un favori", style: TextStyle(fontSize:20),),
+                                            const Divider(height: 5, color: Colors.white),
+                                            const Divider(height: 3, color: Colors.grey),
+                                            const Divider(height: 5, color: Colors.white),
+                                            Container(
+                                                alignment: Alignment.topLeft,
+                                                margin:EdgeInsets.fromLTRB(0, 20, 0, 0),
+                                                child:const Text("titre:")
+                                            ),
+                                            TextField(
+                                              decoration: const InputDecoration(
+                                                hintText: "nom du favoris",),
+                                              controller: titleController,
+                                            ),
+                                            Container(
+                                                alignment: Alignment.topLeft,
+                                                margin:EdgeInsets.fromLTRB(0, 20, 0, 0),
+                                                child:const Text("url:")
+                                            ),
+                                            TextField(
+                                              decoration: const InputDecoration(
+                                                hintText: "url du favoris",),
+                                              controller: urlController,
+                                            ),
+                                            Row(
+                                              children: [
+                                                Expanded(child:Container()),
+                                                Container(
+                                                  margin:const EdgeInsets.fromLTRB(10,10,10,0),
+                                                  child: ElevatedButton(
+                                                      onPressed: () {
+                                                        setState(() {
+                                                          starIcon = const Icon(Icons.star);
+                                                          _favoris.add("$title\n$url");
+                                                        });
+                                                        _saveFavoris(_favoris);
+                                                        Navigator.pop(context);
+                                                      },
+                                                      child: const Text("Ok")
+                                                  ),
+                                                ),
+                                                Container(
+                                                    margin:const EdgeInsets.fromLTRB(10,10,10,0),
+                                                    child:OutlinedButton(
+                                                        onPressed: () {
+                                                          Navigator.pop(context);
+                                                        },
+                                                        child: const Text("Annuler")
+                                                    )
+                                                )
+                                              ],
+                                            )
+                                          ],
+
+                                        )
+                                    )
+                                );
+                              }
+                          );
+                        }
                       }
                   ),
                 ],
@@ -280,8 +395,28 @@ class _MyAppState extends State<MyApp> {
   Future<void> _openHistory(BuildContext ctx) async {
     await Navigator.push(ctx, MaterialPageRoute(builder: (context) => Historique())).then((value) =>{
       _getHistory(),
-      setState((){
-        _webViewController.loadUrl(urlRequest: URLRequest(url: Uri.parse(value[0])));
+      if(value!=null) {
+        setState(() {
+          _webViewController.loadUrl(
+              urlRequest: URLRequest(url: Uri.parse(value[0])));
+        })
+      }
+    });
+  }
+
+  Future<void> _openFavoris(BuildContext ctx) async {
+    await Navigator.push(ctx, MaterialPageRoute(builder: (context) => Favoris())).then((value) =>{
+      _getFavoris(),
+      setState(() {
+        starIcon=const Icon(Icons.star_border);
+        for(String str in _favoris){
+          if(str.substring(str.indexOf("\n"),str.length)==(url.toString())){
+            starIcon=const Icon(Icons.star);
+          }
+        }
+        if(value!=null) {
+          _webViewController.loadUrl(urlRequest: URLRequest(url: Uri.parse(value[0])));
+        }
       })
     });
   }

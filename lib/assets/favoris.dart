@@ -5,40 +5,40 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/services.dart';
 
-class Historique extends StatefulWidget {
-  Historique({Key? key}) : super(key: key);
+class Favoris extends StatefulWidget {
+  Favoris({Key? key}) : super(key: key);
 
   @override
-  _HistoState createState() => _HistoState();
+  _FavorisState createState() => _FavorisState();
 }
 
-class _HistoState extends State<Historique> {
+class _FavorisState extends State<Favoris> {
 
-  var histoList = ["Titre\nurl"];
+  var favorisList = ["Titre\nurl"];
   String filter="";
 
-  Future<void> _getHistory() async {
+  Future<void> _getFavoris() async {
     final prefs = await SharedPreferences.getInstance();
-    if (!prefs.containsKey('history')) {
+    if (!prefs.containsKey('favoris')) {
       return;
     }
     setState(() {
-      histoList = prefs.getStringList('history') ?? ["erreur"];
+      favorisList = prefs.getStringList('favoris') ?? ["erreur"];
     });
   }
 
-  Future<void> _saveHistory(List<String> list) async {
+  Future<void> _saveFavoris(List<String> list) async {
     final prefs = await SharedPreferences.getInstance();
-    prefs.setStringList('history', list);
+    prefs.setStringList('favoris', list);
     setState(() {
-      histoList=list;
+      favorisList=list;
     });
   }
 
   @override
   void initState() {
     super.initState();
-    _getHistory();
+    _getFavoris();
   }
 
 
@@ -46,7 +46,7 @@ class _HistoState extends State<Historique> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("Historique"),
+        title: Text("Favoris"),
         actions: [
           IconButton(
             icon:const Icon(Icons.clear),
@@ -56,8 +56,8 @@ class _HistoState extends State<Historique> {
                   actions: [
                     ElevatedButton(
                         onPressed: (){
-                          histoList=[];
-                          _saveHistory(histoList);
+                          favorisList=[];
+                          _saveFavoris(favorisList);
                           Navigator.pop(context);
                         },
                         child: const Text("Oui")
@@ -69,8 +69,8 @@ class _HistoState extends State<Historique> {
                         child: const Text("Non")
                     )
                   ],
-                  title: const Text("effacer l'historique"),
-                  content: const Text("Voulez vous vraiment effacer l'historique?"),
+                  title: const Text("effacer les favoris"),
+                  content: const Text("Voulez vous vraiment effacer les favoris?"),
                 );
               });
 
@@ -93,9 +93,8 @@ class _HistoState extends State<Historique> {
           Expanded(
               child: ListView.separated(
                   itemBuilder: (BuildContext context, int index) {
-                    String item = histoList[histoList.length-index-1];
-                    String date= item.substring(0,19);
-                    String title = item.substring(19,item.indexOf("\n"));
+                    String item = favorisList[favorisList.length-index-1];
+                    String title = item.substring(0,item.indexOf("\n"));
                     String url = item.substring(item.indexOf("\n")+1);
                     if(item.toLowerCase().contains(filter.toLowerCase())){
                       return ListTile(
@@ -109,17 +108,15 @@ class _HistoState extends State<Historique> {
                           SizedBox(
                             height: 20,
                             child:Text(url, overflow: TextOverflow.fade, softWrap: false,),
-                          ),
-                          Text(date)
+                          )
                         ],),
                         trailing: PopupMenuButton(
                           onSelected: (selectedValue){
                             switch(selectedValue){
                               case 1:
                               //supprimer
-                                histoList.remove(histoList.elementAt(histoList.length-index-1));
-                                print(histoList.toString());
-                                _saveHistory(histoList);
+                                favorisList.remove(favorisList.elementAt(favorisList.length-index-1));
+                                _saveFavoris(favorisList);
                                 break;
                               case 2:
                               //copy to cliboard
@@ -146,13 +143,13 @@ class _HistoState extends State<Historique> {
                     }
                   },
                   separatorBuilder: (BuildContext context, int index) {
-                    String item = histoList[histoList.length-index-1];
+                    String item = favorisList[favorisList.length-index-1];
                     if(item.toLowerCase().contains(filter.toLowerCase())){
                       return const Divider(height: 3, color: Colors.grey);
                     }
                     return const SizedBox(height: 0,width: 0,);
                     },
-                  itemCount: histoList.length
+                  itemCount: favorisList.length
               )
           )
         ],
