@@ -12,7 +12,7 @@ class Parametres extends StatefulWidget {
 
 class _ParamState extends State<Parametres> {
 
-  late String _engine;
+  String _engine="google";
 
   Future<void> _getEngine() async {
     final prefs = await SharedPreferences.getInstance();
@@ -68,11 +68,6 @@ class _ParamState extends State<Parametres> {
             }
         )
     );
-  }
-  @override
-  State<StatefulWidget> createState() {
-    // TODO: implement createState
-    throw UnimplementedError();
   }
 
 }

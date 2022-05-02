@@ -6,13 +6,25 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:intl/intl.dart';
 
 Future main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const MyApp());
+  runApp(MaterialApp(
+    title: 'Curiosite',
+    theme: ThemeData(primarySwatch: Colors.blue,),
+    initialRoute: '/',
+    routes: {
+      // When navigating to the "/" route, build the FirstScreen widget.
+      '/': (context) => const MyApp(),
+      // When navigating to the "/second" route, build the SecondScreen widget.
+      '/param': (context) => Parametres(),
+      '/histo':(context) => Historique(),
+    },
+  ));
 }
 
-class MyApp extends MaterialApp {
+class MyApp extends StatefulWidget {
   const MyApp({Key? key}) : super(key: key);
 
   @override
@@ -27,8 +39,10 @@ class _MyAppState extends State<MyApp> {
   bool pcVersion =  UserPreferredContentMode.RECOMMENDED==UserPreferredContentMode.DESKTOP;
   bool searchMode=false;
   TextEditingController searchBarTextController = TextEditingController();
+  FocusNode searchBarFocusNode = FocusNode();
   String _foundMatches="0/0";
-  late String searchEngine;
+  List<String> historique= [];
+  String searchEngine='google';
 
   get pcVersionIcon => pcVersion?const Icon(Icons.check_box_rounded, color: Colors.black,):const Icon(Icons.check_box_outline_blank, color: Colors.black,);
 
@@ -42,17 +56,45 @@ class _MyAppState extends State<MyApp> {
     });
   }
 
+  Future<void> _getHistory() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!prefs.containsKey('history')) {
+      return;
+    }
+    setState(() {
+      historique = prefs.getStringList('history') ?? ["erreur"];
+    });
+  }
+
+  Future<void> _saveHistory(List<String> list) async {
+    final prefs = await SharedPreferences.getInstance();
+    prefs.setStringList('history', list);
+    historique=list;
+  }
+
   @override
   void initState() {
     super.initState();
     _getEngine();
+    _getHistory();
+    searchBarFocusNode.addListener(() {
+      print("=> ${searchBarFocusNode.hasFocus}");
+      if(!searchBarFocusNode.hasFocus){
+        searchBarTextController.text=url;
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    searchBarFocusNode.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     searchBarTextController.text=url;
-    return MaterialApp(
-        home: WillPopScope(
+    return WillPopScope(
             onWillPop: () async {
               if(searchMode){
                 setState(() {
@@ -67,7 +109,7 @@ class _MyAppState extends State<MyApp> {
               return true;
             },
             child: Builder(builder:(context)=>Scaffold(
-              appBar: appBar(),
+              appBar: appBar(context),
               body: Column(children: <Widget>[
                 Container(
                     child: progress < 1.0
@@ -75,6 +117,11 @@ class _MyAppState extends State<MyApp> {
                         : Container()),
                 Expanded(
                   child: InAppWebView(
+                    onLoadStart:(_webViewController, uri){
+                      setState(() {
+                        this.url = url.toString();
+                      });
+                    },
                     onFindResultReceived: (controller, activeMatchOrdinal, numberOfMatches, isDoneCounting) {
                       if (isDoneCounting) {
                         setState(() {
@@ -87,15 +134,15 @@ class _MyAppState extends State<MyApp> {
                     onWebViewCreated: (InAppWebViewController controller) {
                       _webViewController = controller;
                     },
-                    onLoadStart: (controller, url) {
-                      setState(() {
-                        this.url = url.toString();
-                      });
-                    },
                     onLoadStop: (controller, url) async {
+                      var title = await _webViewController.getTitle();
+                      var date = DateFormat("yyyy-MM-dd HH:mm:ss").format(DateTime.now());
                       setState(() {
                         this.url = url.toString();
                       });
+                      await _getHistory();
+                      historique.add("$date$title\n$url");
+                      _saveHistory(historique);
                     },
                     onProgressChanged: (InAppWebViewController controller, int progress) {
                       setState(() {
@@ -107,17 +154,17 @@ class _MyAppState extends State<MyApp> {
               ]),
             ),
             )
-        )
+
     );
   }
 
   Widget appbarMenu(BuildContext context){
     return PopupMenuButton(
-        onSelected: (result){
+        onSelected: (result) async {
           switch(result){
             case 3: _openHistory(context); break;
             case 5: _openSearchMode(); break;
-            case 7: _openSettings(context); break;
+            case 7: await _openSettings(context); break;
           }
         },
         itemBuilder: (context)=>[
@@ -231,7 +278,12 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> _openHistory(BuildContext ctx) async {
-    await Navigator.push(ctx, MaterialPageRoute(builder: (context) => Historique()));
+    await Navigator.push(ctx, MaterialPageRoute(builder: (context) => Historique())).then((value) =>{
+      _getHistory(),
+      setState((){
+        _webViewController.loadUrl(urlRequest: URLRequest(url: Uri.parse(value[0])));
+      })
+    });
   }
 
   void _openSearchMode(){
@@ -241,7 +293,7 @@ class _MyAppState extends State<MyApp> {
   }
 
 
-  PreferredSizeWidget appBar(){
+  PreferredSizeWidget appBar(BuildContext context){
     if(!searchMode){
       return AppBar(
           title: Container(
@@ -297,6 +349,7 @@ class _MyAppState extends State<MyApp> {
   Widget searchBar(){
     return TextField(
       controller: searchBarTextController,
+      focusNode: searchBarFocusNode,
       keyboardType: TextInputType.url,
       onSubmitted: (text){
         search(text);
@@ -306,6 +359,7 @@ class _MyAppState extends State<MyApp> {
             icon: const Icon(Icons.clear),
             onPressed: () {
               searchBarTextController.text="";
+              searchBarFocusNode.requestFocus();
             },
           ),
           prefixIcon: IconButton(
