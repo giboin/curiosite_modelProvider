@@ -95,7 +95,7 @@ class _FavorisState extends State<Favoris> {
                   itemBuilder: (BuildContext context, int index) {
                     String item = favorisList[favorisList.length-index-1];
                     String title = item.substring(0,item.indexOf("\n"));
-                    String url = item.substring(item.indexOf("\n")+1);
+                    String url = item.substring(item.indexOf("\n")+1,item.length-1);
                     if(item.toLowerCase().contains(filter.toLowerCase())){
                       return ListTile(
                         title: SizedBox(

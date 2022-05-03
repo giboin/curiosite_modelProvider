@@ -1,6 +1,6 @@
 
 import 'dart:async';
-import 'package:curiosite/assets/favoris.dart';
+import 'package:curiosite/favoris.dart';
 import 'package:curiosite/historique.dart';
 import 'package:curiosite/parametres.dart';
 import 'package:flutter/cupertino.dart';
@@ -160,7 +160,7 @@ class _MyAppState extends State<MyApp> {
                     this.url = url.toString();
                     starIcon=const Icon(Icons.star_border);
                     for(String str in _favoris){
-                      if(str.substring(str.indexOf("\n"),str.length)==(url.toString())){
+                      if(str.substring(str.indexOf("\n"),str.length-1)==(url.toString())){
                         starIcon=const Icon(Icons.star);
                       }
                     }
@@ -211,92 +211,112 @@ class _MyAppState extends State<MyApp> {
                       }
                   ),
                   MaterialButton(
-                      key: UniqueKey(),
+
                       child:starIcon,
                       onPressed: ()async{
-                        var title = await _webViewController.getTitle();
-                        var url = (await _webViewController.getUrl()).toString();
+                        String title = await _webViewController.getTitle()??"";
+                        String url = (await _webViewController.getUrl()).toString();
                         Navigator.pop(context);
-                        if(_favoris.contains("$title\n$url")) {
-                          setState(() {
-                            starIcon = const Icon(Icons.star_border);
-                            _favoris.remove("$title\n$url");
-                          });
-                          _saveFavoris(_favoris);
+                        for(String str in _favoris) {
+                          if (str.contains("\n$url.")) {
+                            setState(() {
+                              starIcon = const Icon(Icons.star_border);
+                              _favoris.remove(str);
+                            });
+                            _saveFavoris(_favoris);
+                            return;
+                          }
                         }
-                        else {
-                          showBottomSheet(
-                              context: context,
-                              builder: (BuildContext context) {
-                                TextEditingController titleController = TextEditingController();
-                                titleController.text = title ?? "";
-                                TextEditingController urlController = TextEditingController();
-                                urlController.text = url ;
-                                return SingleChildScrollView(
-                                    child:Container(
-                                        margin: const EdgeInsets.symmetric(vertical: 10,horizontal: 30),
-                                        child: Column(
-                                          children: [
-                                            const Text("Ajouter un favori", style: TextStyle(fontSize:20),),
-                                            const Divider(height: 5, color: Colors.white),
-                                            const Divider(height: 3, color: Colors.grey),
-                                            const Divider(height: 5, color: Colors.white),
-                                            Container(
-                                                alignment: Alignment.topLeft,
-                                                margin:EdgeInsets.fromLTRB(0, 20, 0, 0),
-                                                child:const Text("titre:")
-                                            ),
-                                            TextField(
-                                              decoration: const InputDecoration(
-                                                hintText: "nom du favoris",),
-                                              controller: titleController,
-                                            ),
-                                            Container(
-                                                alignment: Alignment.topLeft,
-                                                margin:EdgeInsets.fromLTRB(0, 20, 0, 0),
-                                                child:const Text("url:")
-                                            ),
-                                            TextField(
-                                              decoration: const InputDecoration(
-                                                hintText: "url du favoris",),
-                                              controller: urlController,
-                                            ),
-                                            Row(
-                                              children: [
-                                                Expanded(child:Container()),
-                                                Container(
-                                                  margin:const EdgeInsets.fromLTRB(10,10,10,0),
-                                                  child: ElevatedButton(
-                                                      onPressed: () {
-                                                        setState(() {
-                                                          starIcon = const Icon(Icons.star);
-                                                          _favoris.add("$title\n$url");
-                                                        });
-                                                        _saveFavoris(_favoris);
-                                                        Navigator.pop(context);
-                                                      },
-                                                      child: const Text("Ok")
-                                                  ),
+                        showBottomSheet(
+                            context: context,
+                            builder: (BuildContext context) {
+                              TextEditingController titleController = TextEditingController();
+                              titleController.text = title;
+                              TextEditingController urlController = TextEditingController();
+                              urlController.text = url;
+                              return SingleChildScrollView(
+                                  child: Container(
+                                      margin: const EdgeInsets.symmetric(
+                                          vertical: 10, horizontal: 30),
+                                      child: Column(
+                                        children: [
+                                          const Text("Ajouter un favori",
+                                            style: TextStyle(
+                                                fontSize: 20),),
+                                          const Divider(height: 5,
+                                              color: Colors.white),
+                                          const Divider(height: 3,
+                                              color: Colors.grey),
+                                          const Divider(height: 5,
+                                              color: Colors.white),
+                                          Container(
+                                              alignment: Alignment.topLeft,
+                                              margin: EdgeInsets.fromLTRB(
+                                                  0, 20, 0, 0),
+                                              child: const Text("titre:")
+                                          ),
+                                          TextField(
+                                            decoration: const InputDecoration(
+                                              hintText: "nom du favoris",),
+                                            controller: titleController,
+                                          ),
+                                          Container(
+                                              alignment: Alignment.topLeft,
+                                              margin: EdgeInsets.fromLTRB(
+                                                  0, 20, 0, 0),
+                                              child: const Text("url:")
+                                          ),
+                                          TextField(
+                                            decoration: const InputDecoration(
+                                              hintText: "url du favoris",),
+                                            controller: urlController,
+                                          ),
+                                          Row(
+                                            children: [
+                                              Expanded(child: Container()),
+                                              Container(
+                                                margin: const EdgeInsets
+                                                    .fromLTRB(
+                                                    10, 10, 10, 0),
+                                                child: ElevatedButton(
+                                                    onPressed: () {
+                                                      setState(() {
+                                                        starIcon =
+                                                        const Icon(
+                                                            Icons.star);
+                                                        _favoris.add("${titleController.text}\n${urlController.text}.");
+                                                      });
+                                                      _saveFavoris(
+                                                          _favoris);
+                                                      Navigator.pop(
+                                                          context);
+                                                    },
+                                                    child: const Text("Ok")
                                                 ),
-                                                Container(
-                                                    margin:const EdgeInsets.fromLTRB(10,10,10,0),
-                                                    child:OutlinedButton(
-                                                        onPressed: () {
-                                                          Navigator.pop(context);
-                                                        },
-                                                        child: const Text("Annuler")
-                                                    )
-                                                )
-                                              ],
-                                            )
-                                          ],
+                                              ),
+                                              Container(
+                                                  margin: const EdgeInsets
+                                                      .fromLTRB(
+                                                      10, 10, 10, 0),
+                                                  child: OutlinedButton(
+                                                      onPressed: () {
+                                                        Navigator.pop(
+                                                            context);
+                                                      },
+                                                      child: const Text(
+                                                          "Annuler")
+                                                  )
+                                              )
+                                            ],
+                                          )
+                                        ],
 
-                                        )
-                                    )
-                                );
-                              }
-                          );
-                        }
+                                      )
+                                  )
+                              );
+                            }
+                        );
+
                       }
                   ),
                 ],
@@ -405,19 +425,19 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> _openFavoris(BuildContext ctx) async {
-    await Navigator.push(ctx, MaterialPageRoute(builder: (context) => Favoris())).then((value) =>{
-      _getFavoris(),
-      setState(() {
+    await Navigator.push(ctx, MaterialPageRoute(builder: (context) => Favoris())).then((value)async{
+      await _getFavoris();
+      setState((){
         starIcon=const Icon(Icons.star_border);
         for(String str in _favoris){
-          if(str.substring(str.indexOf("\n"),str.length)==(url.toString())){
+          if(str.substring(str.indexOf("\n")+1,str.length-1)==(url.toString())){
             starIcon=const Icon(Icons.star);
           }
         }
         if(value!=null) {
           _webViewController.loadUrl(urlRequest: URLRequest(url: Uri.parse(value[0])));
         }
-      })
+      });
     });
   }
 
