@@ -23,28 +23,24 @@ class ModelProvider extends InheritedWidget {
 
 class AppModel with ChangeNotifier{
 
-  String url = "";
+
   bool searchMode=false;
-  late InAppWebViewController controller;
+
   ValueNotifier<String> foundMatches =ValueNotifier<String>("0/0");
   TextEditingController searchBarTextController = TextEditingController();
   FocusNode searchBarFocusNode = FocusNode();
   String searchEngine='google';
   List<String> favorites =[];
   List<String> history=[];
-  bool incognito=false;
-  bool pcVersion =  UserPreferredContentMode.RECOMMENDED==UserPreferredContentMode.DESKTOP;
   ValueNotifier<bool> isFav = ValueNotifier(false);
   String home="google.com";
   List<TabWebView> tabs=[];
-  int currentTabIndex=0;
-
-  get pcVersionIcon => pcVersion?const Icon(Icons.check_box_rounded, color: Colors.black,):const Icon(Icons.check_box_outline_blank, color: Colors.black,);
+  ValueNotifier<int> currentTabIndex=ValueNotifier(0);
 
   void isFavUpdate({String? url}){
     isFav.value=false;
     for(String str in favorites){
-      if(str.substring(str.indexOf("\n"),str.length-1).trim()==(url??this.url).trim()){
+      if(str.substring(str.indexOf("\n"),str.length-1).trim()==(url??tabs[currentTabIndex.value].url).trim()){
         isFav.value=true;
         return;
       }
@@ -99,6 +95,16 @@ class AppModel with ChangeNotifier{
       newTab(url:str);
     }
   }
+  Future<void> saveTabs(List<TabWebView> list) async {
+    final prefs = await SharedPreferences.getInstance();
+    tabs=list;
+    List<String> tmp = [];
+    for(TabWebView tab in tabs){
+      tmp.add(tab.url);
+    }
+    prefs.setStringList('tabs', tmp);
+  }
+
 
   void init(){
     loadHistory();
@@ -106,20 +112,24 @@ class AppModel with ChangeNotifier{
     loadEngine();
     loadTabs();
     if(tabs.isEmpty){
-      newTab(url:home, incognito:false);
+      newTab(url:home);
     }
+  }
+
+  void newTab({String? url, bool incognito=false}) {
+    tabs.add(TabWebView(url:home, incognito: incognito,));
   }
 
 
   void clearFindWorld(){
     searchMode=false;
-    controller.findAllAsync(find: "");
+    tabs[currentTabIndex.value].controller.findAllAsync(find: "");
   }
 
   void search(String str){
     var txt=formatToUrl(str);
     txt = removeHttp(txt);
-    controller.loadUrl(urlRequest: URLRequest(url: Uri.parse(txt)));
+    tabs[currentTabIndex.value].controller.loadUrl(urlRequest: URLRequest(url: Uri.parse(txt)));
   }
 
   String formatToUrl(String str){
@@ -146,8 +156,5 @@ class AppModel with ChangeNotifier{
     return str;
   }
 
-  void newTab({String? url, bool incognito=false}) {
-    tabs.add(TabWebView());
-  }
 
 }

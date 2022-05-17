@@ -6,7 +6,12 @@ import 'package:intl/intl.dart';
 import 'model/modelProvider.dart';
 
 class TabWebView extends StatefulWidget {
-  TabWebView({Key? key}) : super(key: key);
+  TabWebView({Key? key, this.incognito=false, required this.url}) : super(key: key);
+
+  String url;
+  bool incognito;
+  late InAppWebViewController controller;
+  bool pcVersion =  UserPreferredContentMode.RECOMMENDED==UserPreferredContentMode.DESKTOP;
 
   @override
   _TabWebViewState createState() => _TabWebViewState();
@@ -43,14 +48,14 @@ class _TabWebViewState extends State<TabWebView> {
             },
             initialUrlRequest: URLRequest(url:Uri(path: ModelProvider.of(context).home)),
             onWebViewCreated: (InAppWebViewController controller) {
-              ModelProvider.of(context).controller = controller;
-              ModelProvider.of(context).controller.setOptions(options: InAppWebViewGroupOptions(crossPlatform: InAppWebViewOptions(incognito: ModelProvider.of(context).incognito)));
+              widget.controller = controller;
+              widget.controller.setOptions(options: InAppWebViewGroupOptions(crossPlatform: InAppWebViewOptions(incognito: widget.incognito)));
             },
             onLoadStop: (controller, url) async {
-              var title = await ModelProvider.of(context).controller.getTitle();
+              var title = await widget.controller.getTitle();
               var date = DateFormat("yyyy-MM-dd HH:mm:ss").format(DateTime.now());
-              ModelProvider.of(context).url = url.toString();
-              ModelProvider.of(context).searchBarTextController.text=ModelProvider.of(context).url;
+              widget.url = url.toString();
+              ModelProvider.of(context).searchBarTextController.text=widget.url;
 
               if(ModelProvider.of(context).history.isEmpty){
                 ModelProvider.of(context).history.add("$date$title\n${url.toString()}");
