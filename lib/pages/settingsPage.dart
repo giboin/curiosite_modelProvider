@@ -1,40 +1,17 @@
 
+import 'package:curiosite/model/modelProvider.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
-class Parametres extends StatefulWidget {
-  Parametres({Key? key}) : super(key: key);
+class SettingsPage extends StatefulWidget {
+  SettingsPage({Key? key}) : super(key: key);
 
   @override
   _ParamState createState() => _ParamState();
 }
 
-class _ParamState extends State<Parametres> {
+class _ParamState extends State<SettingsPage> {
 
-  String _engine="google";
-
-  Future<void> _getEngine() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (!prefs.containsKey('engine')) {
-      return;
-    }
-    setState(() {
-      _engine = prefs.getString('engine') ?? "erreur";
-    });
-  }
-
-  Future<void> _saveEngine(String str) async {
-    final prefs = await SharedPreferences.getInstance();
-    prefs.setString('engine', str);
-    _getEngine();
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _getEngine();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -48,18 +25,26 @@ class _ParamState extends State<Parametres> {
             itemBuilder: (BuildContext context, int index) {
               return PopupMenuButton(
                   child: ListTile(title: [
-                    Text("moteur de recherche: "+(_engine)),
-                    Text("autre chose"),
+                    Text("moteur de recherche: "+(ModelProvider.of(context).searchEngine)),
+                    Text("(not impl.)home: "+(ModelProvider.of(context).home)),
                   ][index],),
                   itemBuilder: (BuildContext context)=><List<PopupMenuEntry>>[
                     [
                       PopupMenuItem(
                         child: Text("Google"),
-                        onTap: (){_saveEngine("google");},
+                        onTap: (){
+                          setState(() {
+                            ModelProvider.of(context).saveEngine("google");
+                          });
+                        },
                       ),
                       PopupMenuItem(
                         child: Text("Lilo"),
-                        onTap: (){_saveEngine("lilo");},
+                        onTap: (){
+                          setState(() {
+                            ModelProvider.of(context).saveEngine("lilo");
+                          });
+                        },
                       ),
                     ],
 

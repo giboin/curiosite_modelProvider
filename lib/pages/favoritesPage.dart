@@ -5,40 +5,27 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/services.dart';
 
-class Historique extends StatefulWidget {
-  Historique({Key? key}) : super(key: key);
+import '../model/modelProvider.dart';
+
+class FavoritesPage extends StatefulWidget {
+  FavoritesPage({Key? key}) : super(key: key);
 
   @override
-  _HistoState createState() => _HistoState();
+  _FavoritesPageState createState() => _FavoritesPageState();
 }
 
-class _HistoState extends State<Historique> {
+class _FavoritesPageState extends State<FavoritesPage> {
 
-  var histoList = ["Titre\nurl"];
+  List<String> get favs => ModelProvider.of(context).favorites;
+  set favs(List<String> list){
+    ModelProvider.of(context).saveFavorites(list);
+  }
   String filter="";
 
-  Future<void> _getHistory() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (!prefs.containsKey('history')) {
-      return;
-    }
-    setState(() {
-      histoList = prefs.getStringList('history') ?? ["erreur"];
-    });
-  }
-
-  Future<void> _saveHistory(List<String> list) async {
-    final prefs = await SharedPreferences.getInstance();
-    prefs.setStringList('history', list);
-    setState(() {
-      histoList=list;
-    });
-  }
-
   @override
-  void initState() {
-    super.initState();
-    _getHistory();
+  void didChangeDependencies() {
+    ModelProvider.of(context).addListener(() => setState((){}));
+    super.didChangeDependencies();
   }
 
 
@@ -46,19 +33,20 @@ class _HistoState extends State<Historique> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("Historique"),
+        title: Text("Favoris"),
         actions: [
           IconButton(
             icon:const Icon(Icons.clear),
             onPressed: (){
-              showDialog(context: context, builder: (context){
+              showDialog(context: context, builder: (ctx){
                 return AlertDialog(
                   actions: [
                     ElevatedButton(
                         onPressed: (){
-                          histoList=[];
-                          _saveHistory(histoList);
-                          Navigator.pop(context);
+                          setState(() {
+                            favs=[];
+                          });
+                          Navigator.pop(ctx);
                         },
                         child: const Text("Oui")
                     ),
@@ -69,8 +57,8 @@ class _HistoState extends State<Historique> {
                         child: const Text("Non")
                     )
                   ],
-                  title: const Text("effacer l'historique"),
-                  content: const Text("Voulez vous vraiment effacer l'historique?"),
+                  title: const Text("effacer les favoris"),
+                  content: const Text("Voulez vous vraiment effacer les favoris?"),
                 );
               });
 
@@ -93,10 +81,9 @@ class _HistoState extends State<Historique> {
           Expanded(
               child: ListView.separated(
                   itemBuilder: (BuildContext context, int index) {
-                    String item = histoList[histoList.length-index-1];
-                    String date= item.substring(0,19);
-                    String title = item.substring(19,item.indexOf("\n"));
-                    String url = item.substring(item.indexOf("\n")+1);
+                    String item = favs[favs.length-index-1];
+                    String title = item.substring(0,item.indexOf("\n"));
+                    String url = item.substring(item.indexOf("\n")+1,item.length-1);
                     if(item.toLowerCase().contains(filter.toLowerCase())){
                       return ListTile(
                         title: SizedBox(
@@ -106,20 +93,20 @@ class _HistoState extends State<Historique> {
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                          SizedBox(
-                            height: 20,
-                            child:Text(url, overflow: TextOverflow.fade, softWrap: false,),
-                          ),
-                          Text(date)
-                        ],),
+                            SizedBox(
+                              height: 20,
+                              child:Text(url, overflow: TextOverflow.fade, softWrap: false,),
+                            )
+                          ],),
                         trailing: PopupMenuButton(
                           onSelected: (selectedValue){
                             switch(selectedValue){
                               case 1:
                               //supprimer
-                                histoList.remove(histoList.elementAt(histoList.length-index-1));
-                                print(histoList.toString());
-                                _saveHistory(histoList);
+                                setState(() {
+                                  favs.removeAt(favs.length-index-1);
+                                });
+                                ModelProvider.of(context).saveFavorites(favs);
                                 break;
                               case 2:
                               //copy to cliboard
@@ -146,13 +133,13 @@ class _HistoState extends State<Historique> {
                     }
                   },
                   separatorBuilder: (BuildContext context, int index) {
-                    String item = histoList[histoList.length-index-1];
+                    String item = favs[favs.length-index-1];
                     if(item.toLowerCase().contains(filter.toLowerCase())){
                       return const Divider(height: 3, color: Colors.grey);
                     }
                     return const SizedBox(height: 0,width: 0,);
-                    },
-                  itemCount: histoList.length
+                  },
+                  itemCount: favs.length
               )
           )
         ],
