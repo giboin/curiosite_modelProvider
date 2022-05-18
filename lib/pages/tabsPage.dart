@@ -17,7 +17,7 @@ class _TabsPageState extends State<TabsPage> {
   List<TabWebView> get tabs => ModelProvider.of(context).tabs;
 
   set tabs(List<TabWebView> list) {
-    ModelProvider.of(context).saveTabs(list);
+    ModelProvider.of(context).saveTabs(list: list);
   }
 
 
@@ -37,9 +37,8 @@ class _TabsPageState extends State<TabsPage> {
           IconButton(
               onPressed:(){
                 setState(() {
-                  tabs.add(TabWebView(url:ModelProvider.of(context).home));
+                  ModelProvider.of(context).newTab();
                 });
-                ModelProvider.of(context).saveTabs(tabs);
               },
               icon: const Icon(Icons.add)
           ),
@@ -52,10 +51,9 @@ class _TabsPageState extends State<TabsPage> {
                     ElevatedButton(
                         onPressed: () {
                           setState(() {
-                            setState(() {
-                              tabs = [TabWebView(url:ModelProvider.of(context).home)];
-                            });
-                            ModelProvider.of(context).saveTabs(tabs);
+                            ModelProvider.of(context).tabs.clear();
+                            ModelProvider.of(context).newTab(url:"flutter.dev");
+                            ModelProvider.of(context).currentTabIndex=0;
                           });
                           Navigator.pop(ctx);
                         },
@@ -63,7 +61,7 @@ class _TabsPageState extends State<TabsPage> {
                     ),
                     OutlinedButton(
                         onPressed: () {
-                          Navigator.pop(context);
+                          Navigator.pop(ctx);
                         },
                         child: const Text("Non")
                     )
@@ -85,7 +83,7 @@ class _TabsPageState extends State<TabsPage> {
                     TabWebView tab=tabs[index];
                     String url = tab.url;
                     return ListTile(
-                      leading: Icon(index==ModelProvider.of(context).currentTabIndex.value?Icons.arrow_forward_sharp:null),
+                      leading: Icon(index==ModelProvider.of(context).currentTabIndex?Icons.arrow_forward_sharp:null),
                       title: SizedBox(
                           height: 25,
                           child: Text(url, overflow: TextOverflow.fade,
@@ -96,18 +94,9 @@ class _TabsPageState extends State<TabsPage> {
                           switch (selectedValue) {
                             case 1:
                             //supprimer
-                              if(ModelProvider.of(context).currentTabIndex.value==index){
-                                ModelProvider.of(context).currentTabIndex.value=tabs.length-2;
-                              }
                               setState(() {
-                                tabs.removeAt(index);
+                              ModelProvider.of(context).removeTab(index);
                               });
-                              if(ModelProvider.of(context).currentTabIndex.value==-1){
-                                tabs.add(TabWebView(url:ModelProvider.of(context).home));
-                                ModelProvider.of(context).currentTabIndex.value=0;
-                                ModelProvider.of(context).saveTabs(tabs);
-                              }
-                              ModelProvider.of(context).saveTabs(tabs);
                               break;
                             case 2:
                             //copy to cliboard
@@ -129,7 +118,7 @@ class _TabsPageState extends State<TabsPage> {
                       ),
                       onTap: () {
                         setState(() {
-                          ModelProvider.of(context).currentTabIndex.value=index;
+                          ModelProvider.of(context).currentTabIndex=index;
                         });
                         Navigator.pop(context);
                       },

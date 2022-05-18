@@ -20,13 +20,13 @@ class WebPage extends StatefulWidget {
 class _WebPageState extends State<WebPage> {
 
 
-  TabWebView get currentTab => ModelProvider.of(context).tabs[ModelProvider.of(context).currentTabIndex.value];
+  TabWebView get currentTab => ModelProvider.of(context).tabs[ModelProvider.of(context).currentTabIndex];
   get pcVersionIcon => currentTab.pcVersion?const Icon(Icons.check_box_rounded, color: Colors.black,):const Icon(Icons.check_box_outline_blank, color: Colors.black,);
 
   @override
   void didChangeDependencies() {
     ModelProvider.of(context).addListener(() => setState((){}));
-    ModelProvider.of(context).init();
+    initModel();
     ModelProvider.of(context).searchBarFocusNode.addListener(() {
       if(!ModelProvider.of(context).searchBarFocusNode.hasFocus){
         ModelProvider.of(context).searchBarTextController.text=currentTab.url;
@@ -38,6 +38,11 @@ class _WebPageState extends State<WebPage> {
     super.didChangeDependencies();
   }
 
+  void initModel()async{
+    ModelProvider.of(context).init();
+    await ModelProvider.of(context).loadTabs();
+    setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -61,18 +66,16 @@ class _WebPageState extends State<WebPage> {
         },
         child:Scaffold(
             appBar: appBar(context),
-            body: ValueListenableBuilder(
-              valueListenable: ModelProvider.of(context).currentTabIndex,
-              builder: (context, value, _){
-                return IndexedStack(
-                  index:ModelProvider.of(context).currentTabIndex.value,
-                  children: ModelProvider.of(context).tabs,
-                );
-              },
-            )
+            body: IndexedStack(
+              index: ModelProvider.of(context).currentTabIndex,
+              children: ModelProvider.of(context).tabs.map((webViewTab) {
+                return webViewTab;
+              }).toList(),)
         )
     );
   }
+
+
 
 
 
@@ -198,6 +201,8 @@ class _WebPageState extends State<WebPage> {
                   MaterialButton(
                       child:const Icon(Icons.refresh),
                       onPressed: (){
+                        print("=>currentIndex: "+ModelProvider.of(context).currentTabIndex.toString());
+                        print("=>currentUrl: "+currentTab.url);
                         currentTab.controller.reload();
                         Navigator.pop(context);
                       }
@@ -423,7 +428,8 @@ class _WebPageState extends State<WebPage> {
   Future<void> _openTabs(BuildContext ctx) async {
     await Navigator.push(ctx, MaterialPageRoute(builder: (context) => TabsPage())).then((value){
       setState(() {
-        ModelProvider.of(context).searchBarTextController.text=ModelProvider.of(context).tabs[ModelProvider.of(context).currentTabIndex.value].url;
+        ModelProvider.of(context).searchBarTextController.text=currentTab.url;
+        ModelProvider.of(context).isFavUpdate();
       });
     });
   }

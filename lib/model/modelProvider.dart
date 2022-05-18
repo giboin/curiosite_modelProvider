@@ -33,19 +33,18 @@ class AppModel with ChangeNotifier{
   List<String> favorites =[];
   List<String> history=[];
   ValueNotifier<bool> isFav = ValueNotifier(false);
-  String home="google.com";
   List<TabWebView> tabs=[];
-  ValueNotifier<int> currentTabIndex=ValueNotifier(0);
+  int currentTabIndex=0;
+  String home="google.com";
 
-  void isFavUpdate({String? url}){
-    isFav.value=false;
-    for(String str in favorites){
-      if(str.substring(str.indexOf("\n"),str.length-1).trim()==(url??tabs[currentTabIndex.value].url).trim()){
-        isFav.value=true;
-        return;
-      }
-    }
+
+  void init() {
+    loadHistory();
+    loadFavorites();
+    loadEngine();
   }
+
+
 
   Future<void> loadHistory() async {
     final prefs = await SharedPreferences.getInstance();
@@ -88,17 +87,28 @@ class AppModel with ChangeNotifier{
   Future<void> loadTabs() async {
     final prefs = await SharedPreferences.getInstance();
     if (!prefs.containsKey('tabs')) {
+      newTab();
+      currentTabIndex=0;
       return;
     }
     List<String> tabsString = prefs.getStringList('tabs') ??[];
-    for(String str in tabsString){
-      newTab(url:str);
+    if(tabsString.isEmpty){
+      newTab();
+      currentTabIndex=0;
+      return;
+    }
+    currentTabIndex=int.parse(tabsString[0]);
+    tabsString.removeAt(0);
+    for (String str in tabsString) {
+      newTab(url: removeHttp(str));
     }
   }
-  Future<void> saveTabs(List<TabWebView> list) async {
+  Future<void> saveTabs({List<TabWebView>? list}) async {
     final prefs = await SharedPreferences.getInstance();
-    tabs=list;
-    List<String> tmp = [];
+    if(list!=null){
+      tabs=list;
+    }
+    List<String> tmp = [currentTabIndex.toString()];
     for(TabWebView tab in tabs){
       tmp.add(tab.url);
     }
@@ -106,30 +116,52 @@ class AppModel with ChangeNotifier{
   }
 
 
-  void init(){
-    loadHistory();
-    loadFavorites();
-    loadEngine();
-    loadTabs();
-    if(tabs.isEmpty){
-      newTab(url:home);
+
+  void newTab({String? url, bool incognito=false}) {
+    if(url==null){
+      tabs.add(TabWebView(key: GlobalKey(), url:home, incognito: incognito));
+    }
+    else{
+      tabs.add(TabWebView(key: GlobalKey(), url:url, incognito: incognito));
+    }
+    saveTabs();
+
+  }
+
+  void removeTab(int index){
+    if(currentTabIndex>=index){
+      currentTabIndex=currentTabIndex-1;
+    }
+    tabs.removeAt(index);
+
+    if(currentTabIndex==-1){
+      if(tabs.isEmpty){
+        newTab();
+      }
+      currentTabIndex=0;
+    }
+    saveTabs();
+  }
+
+  void isFavUpdate({String? url}){
+    isFav.value=false;
+    for(String str in favorites){
+      if(str.substring(str.indexOf("\n"),str.length-1).trim()==(url??tabs[currentTabIndex].url).trim()){
+        isFav.value=true;
+        return;
+      }
     }
   }
 
-  void newTab({String? url, bool incognito=false}) {
-    tabs.add(TabWebView(url:home, incognito: incognito,));
-  }
-
-
   void clearFindWorld(){
     searchMode=false;
-    tabs[currentTabIndex.value].controller.findAllAsync(find: "");
+    tabs[currentTabIndex].controller.findAllAsync(find: "");
   }
 
   void search(String str){
     var txt=formatToUrl(str);
     txt = removeHttp(txt);
-    tabs[currentTabIndex.value].controller.loadUrl(urlRequest: URLRequest(url: Uri.parse(txt)));
+    tabs[currentTabIndex].controller.loadUrl(urlRequest: URLRequest(url: Uri.parse(txt)));
   }
 
   String formatToUrl(String str){
@@ -158,3 +190,4 @@ class AppModel with ChangeNotifier{
 
 
 }
+

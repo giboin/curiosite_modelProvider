@@ -1,3 +1,4 @@
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
@@ -6,7 +7,8 @@ import 'package:intl/intl.dart';
 import 'model/modelProvider.dart';
 
 class TabWebView extends StatefulWidget {
-  TabWebView({Key? key, this.incognito=false, required this.url}) : super(key: key);
+  final GlobalKey<_TabWebViewState> key;
+  TabWebView({required this.key, this.incognito=false, required this.url}) : super(key: key);
 
   String url;
   bool incognito;
@@ -46,7 +48,7 @@ class _TabWebViewState extends State<TabWebView> {
                 });
               }
             },
-            initialUrlRequest: URLRequest(url:Uri(path: ModelProvider.of(context).home)),
+            initialUrlRequest: URLRequest(url:Uri.parse(widget.url)),
             onWebViewCreated: (InAppWebViewController controller) {
               widget.controller = controller;
               widget.controller.setOptions(options: InAppWebViewGroupOptions(crossPlatform: InAppWebViewOptions(incognito: widget.incognito)));
@@ -67,15 +69,13 @@ class _TabWebViewState extends State<TabWebView> {
                   ModelProvider.of(context).saveHistory(ModelProvider.of(context).history);
                 }
               }
-
-
-
+              ModelProvider.of(context).saveTabs();
               ModelProvider.of(context).isFavUpdate(url:url.toString());
 
             },
-            onProgressChanged: (InAppWebViewController controller, int progress) {
+            onProgressChanged: (InAppWebViewController controller, int prog) {
               setState(() {
-                progress = (progress / 100) as int;
+                progress = (prog / 100);
               });
             },
           )
