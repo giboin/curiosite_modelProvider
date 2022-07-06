@@ -1,10 +1,7 @@
-import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:curiosite/TabWebView.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
 import '../model/modelProvider.dart';
@@ -33,11 +30,11 @@ class _TabsPageState extends State<TabsPage> {
     super.didChangeDependencies();
   }
 
-  void test() async{
+  /*void test() async{
     ByteData bytes = await rootBundle.load('lib/assets/transparent.png');
     Uint8List list = bytes.buffer.asUint8List();
     print("====>"+list.toString());
-  }
+  }*/
 
 
   @override

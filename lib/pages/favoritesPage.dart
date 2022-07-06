@@ -1,14 +1,12 @@
 
 
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/services.dart';
 
 import '../model/modelProvider.dart';
 
 class FavoritesPage extends StatefulWidget {
-  FavoritesPage({Key? key}) : super(key: key);
+  const FavoritesPage({Key? key}) : super(key: key);
 
   @override
   _FavoritesPageState createState() => _FavoritesPageState();
@@ -33,7 +31,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("Favoris"),
+        title: const Text("Favoris"),
         actions: [
           IconButton(
             icon:const Icon(Icons.clear),

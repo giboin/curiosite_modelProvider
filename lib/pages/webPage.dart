@@ -2,16 +2,14 @@ import 'package:curiosite/TabWebView.dart';
 import 'package:curiosite/pages/favoritesPage.dart';
 import 'package:curiosite/pages/settingsPage.dart';
 import 'package:curiosite/pages/tabsPage.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
 import '../model/modelProvider.dart';
 import 'historyPage.dart';
 
 class WebPage extends StatefulWidget {
-  WebPage({Key? key}) : super(key: key);
+  const WebPage({Key? key}) : super(key: key);
 
   @override
   _WebPageState createState() => _WebPageState();

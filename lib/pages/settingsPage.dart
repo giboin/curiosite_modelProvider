@@ -1,11 +1,9 @@
 
 import 'package:curiosite/model/modelProvider.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 class SettingsPage extends StatefulWidget {
-  SettingsPage({Key? key}) : super(key: key);
+  const SettingsPage({Key? key}) : super(key: key);
 
   @override
   _ParamState createState() => _ParamState();
@@ -64,10 +62,10 @@ class _ParamState extends State<SettingsPage> {
                   OutlinedButton(onPressed: (){
                     ModelProvider.of(context).saveHomePage(homePageController.text);
                     Navigator.pop(ctx);
-                  }, child: Text("ok")),
+                  }, child: const Text("ok")),
                   OutlinedButton(onPressed: (){
                     Navigator.pop(ctx);
-                  }, child: Text("nope")),
+                  }, child: const Text("nope")),
                 ],
               );
             });

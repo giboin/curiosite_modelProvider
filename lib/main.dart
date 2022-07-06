@@ -20,9 +20,9 @@ Future main() async {
       // When navigating to the "/" route, build the FirstScreen widget.
       '/': (context) => MyApp(model: model,),
       // When navigating to the "/second" route, build the SecondScreen widget.
-      '/settings': (context) => SettingsPage(),
-      '/history':(context) => HistoryPage(),
-      '/favorites':(context) => FavoritesPage(),
+      '/settings': (context) => const SettingsPage(),
+      '/history':(context) => const HistoryPage(),
+      '/favorites':(context) => const FavoritesPage(),
     },
   ));
 }
@@ -35,7 +35,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return ModelProvider(
       model: model,
-      child: MaterialApp(
+      child: const MaterialApp(
         title: 'Curiosité',
         home: WebPage(),
       ),
