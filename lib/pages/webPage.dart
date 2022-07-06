@@ -27,9 +27,10 @@ class _WebPageState extends State<WebPage> {
   void didChangeDependencies() {
     ModelProvider.of(context).addListener(() => setState((){}));
     initModel();
+
     ModelProvider.of(context).searchBarFocusNode.addListener(() {
       if(!ModelProvider.of(context).searchBarFocusNode.hasFocus){
-        ModelProvider.of(context).searchBarTextController.text=currentTab.url;
+        ModelProvider.of(context).searchBarTextController.text=ModelProvider.of(context).formatUrlForText(currentTab.url);
       }
       else{
         ModelProvider.of(context).searchBarTextController.selection=TextSelection.collapsed(offset: ModelProvider.of(context).searchBarTextController.text.length);
@@ -46,6 +47,9 @@ class _WebPageState extends State<WebPage> {
 
   @override
   Widget build(BuildContext context) {
+    if(ModelProvider.of(context).tabs.isEmpty){
+      return Container();
+    }
     return WillPopScope(
         onWillPop: () async {
           if(ModelProvider.of(context).searchMode){
@@ -82,6 +86,7 @@ class _WebPageState extends State<WebPage> {
   PreferredSizeWidget appBar(BuildContext context){
     if(!ModelProvider.of(context).searchMode){
       return AppBar(
+          backgroundColor: currentTab.incognito?Colors.grey[800]:Colors.blue,
           title: Container(
             width: double.infinity,
             decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(5)),
@@ -114,6 +119,7 @@ class _WebPageState extends State<WebPage> {
       );
     }
     return AppBar(
+      backgroundColor: currentTab.incognito?Colors.grey[800]:Colors.blue,
       title: ValueListenableBuilder<String>(
           valueListenable: ModelProvider.of(context).foundMatches,
           builder: (context, value, _) {
@@ -150,11 +156,11 @@ class _WebPageState extends State<WebPage> {
 
   Widget searchBar(){
     return TextField(
+      keyboardType: TextInputType.url,
       controller: ModelProvider.of(context).searchBarTextController,
       focusNode: ModelProvider.of(context).searchBarFocusNode,
-      keyboardType: TextInputType.url,
       onSubmitted: (text){
-        ModelProvider.of(context).search(text);
+        ModelProvider.of(context).search(text.trim());
       },
       decoration: InputDecoration(
           suffixIcon: IconButton(
@@ -164,14 +170,15 @@ class _WebPageState extends State<WebPage> {
               ModelProvider.of(context).searchBarFocusNode.requestFocus();
             },
           ),
-          prefixIcon: IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () {
-              ModelProvider.of(context).search(ModelProvider.of(context).searchBarTextController.text);
-            },
+          prefixIcon: ValueListenableBuilder<bool>(
+              valueListenable:ModelProvider.of(context).isSecure,
+              builder: (context, value, _) {
+                return ModelProvider.of(context).isSecure.value?const Icon(Icons.lock, color:Colors.green,):const Icon(Icons.lock_open, color: Colors.black,);
+              }
           ),
           hintText: 'Search...',
-          border: InputBorder.none),
+          border: InputBorder.none
+      ),
     );
   }
 
@@ -181,6 +188,18 @@ class _WebPageState extends State<WebPage> {
     return PopupMenuButton(
         onSelected: (result) async {
           switch(result){
+            case 1:
+              ModelProvider.of(context).newTab();
+              setState(() {
+                ModelProvider.of(context).currentTabIndex=ModelProvider.of(context).tabs.length-1;
+              });
+              break;
+            case 2:
+              ModelProvider.of(context).newTab(incognito: true);
+              setState(() {
+                ModelProvider.of(context).currentTabIndex=ModelProvider.of(context).tabs.length-1;
+              });
+              break;
             case 3: _openHistory(context); break;
             case 4: _openFavorites(context); break;
             case 5: _openSearchMode(); break;
@@ -201,8 +220,6 @@ class _WebPageState extends State<WebPage> {
                   MaterialButton(
                       child:const Icon(Icons.refresh),
                       onPressed: (){
-                        print("=>currentIndex: "+ModelProvider.of(context).currentTabIndex.toString());
-                        print("=>currentUrl: "+currentTab.url);
                         currentTab.controller.reload();
                         Navigator.pop(context);
                       }
@@ -319,9 +336,9 @@ class _WebPageState extends State<WebPage> {
               value: 1,
               child: Row(
                 children: [
-                  const Icon(Icons.add_moderator, color: Colors.black,),
+                  const Icon(Icons.plus_one, color: Colors.lightGreen,),
                   Container(margin: const EdgeInsets.only(right: 20),),
-                  const Text("Nouvel onglet nav. priv.")
+                  const Text("Nouvel onglet")
                 ],
               )
           ),
@@ -329,9 +346,10 @@ class _WebPageState extends State<WebPage> {
               value: 2,
               child: Row(
                 children: [
-                  const Icon(Icons.file_open, color: Colors.black,),
+                  //const Icon(Icons.add_moderator, color: Colors.black,),
+                  const ImageIcon(AssetImage("lib/assets/incognito.png"), color: Colors.black,),
                   Container(margin: const EdgeInsets.only(right: 20),),
-                  const Text("Nouvel onglet expl. fichiers")
+                  const Text("Nouvel onglet nav. priv.")
                 ],
               )
           ),
@@ -349,7 +367,7 @@ class _WebPageState extends State<WebPage> {
               value: 4,
               child: Row(
                 children: [
-                  const Icon(Icons.star, color: Colors.black,),
+                  const Icon(Icons.star, color: Colors.yellow,),
                   Container(margin: const EdgeInsets.only(right: 20),),
                   const Text("Favoris")
                 ],
@@ -359,7 +377,7 @@ class _WebPageState extends State<WebPage> {
               value: 5,
               child: Row(
                 children: [
-                  const Icon(Icons.search, color: Colors.black,),
+                  const Icon(Icons.search, color: Colors.blue,),
                   Container(margin: const EdgeInsets.only(right: 20),),
                   const Text("Rechercher sur la page")
                 ],
@@ -390,7 +408,7 @@ class _WebPageState extends State<WebPage> {
             value: 7,
             child: Row(
               children: [
-                const Icon(Icons.settings, color: Colors.black,),
+                const Icon(Icons.settings, color: Colors.grey,),
                 Container(margin: const EdgeInsets.only(right: 20),),
                 const Text("Paramètres")
               ],
@@ -426,9 +444,9 @@ class _WebPageState extends State<WebPage> {
   }
 
   Future<void> _openTabs(BuildContext ctx) async {
-    await Navigator.push(ctx, MaterialPageRoute(builder: (context) => TabsPage())).then((value){
+    await Navigator.push(ctx, MaterialPageRoute(builder: (context) => const TabsPage())).then((value){
       setState(() {
-        ModelProvider.of(context).searchBarTextController.text=currentTab.url;
+        ModelProvider.of(context).searchBarTextController.text=ModelProvider.of(context).formatUrlForText(currentTab.url);
         ModelProvider.of(context).isFavUpdate();
       });
     });

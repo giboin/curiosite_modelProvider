@@ -38,6 +38,7 @@ class _TabWebViewState extends State<TabWebView> {
               : Container()),
       Expanded(
           child:InAppWebView(
+            initialOptions: InAppWebViewGroupOptions(android: AndroidInAppWebViewOptions(useHybridComposition: true)),
             onLoadStart:(_webViewController, uri){
             },
             onFindResultReceived: (controller, activeMatchOrdinal, numberOfMatches, isDoneCounting) {
@@ -57,20 +58,24 @@ class _TabWebViewState extends State<TabWebView> {
               var title = await widget.controller.getTitle();
               var date = DateFormat("yyyy-MM-dd HH:mm:ss").format(DateTime.now());
               widget.url = url.toString();
-              ModelProvider.of(context).searchBarTextController.text=widget.url;
+              ModelProvider.of(context).searchBarTextController.text=ModelProvider.of(context).formatUrlForText(widget.url);
 
-              if(ModelProvider.of(context).history.isEmpty){
-                ModelProvider.of(context).history.add("$date$title\n${url.toString()}");
-                ModelProvider.of(context).saveHistory(ModelProvider.of(context).history);
-              }else{
-                String lastEntry=ModelProvider.of(context).history.last;
-                if(lastEntry.substring(lastEntry.indexOf("\n")).trim()!=url.toString().trim()){
+              if(!widget.incognito){
+                if(ModelProvider.of(context).history.isEmpty){
                   ModelProvider.of(context).history.add("$date$title\n${url.toString()}");
                   ModelProvider.of(context).saveHistory(ModelProvider.of(context).history);
+                }else{
+                  String lastEntry=ModelProvider.of(context).history.last;
+                  if(lastEntry.substring(lastEntry.indexOf("\n")).trim()!=url.toString().trim()){
+                    ModelProvider.of(context).history.add("$date$title\n${url.toString()}");
+                    ModelProvider.of(context).saveHistory(ModelProvider.of(context).history);
+                  }
                 }
               }
+
               ModelProvider.of(context).saveTabs();
               ModelProvider.of(context).isFavUpdate(url:url.toString());
+              ModelProvider.of(context).isSecureUpdate(url:url.toString());
 
             },
             onProgressChanged: (InAppWebViewController controller, int prog) {

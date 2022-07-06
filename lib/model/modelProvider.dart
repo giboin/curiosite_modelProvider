@@ -26,22 +26,27 @@ class AppModel with ChangeNotifier{
 
   bool searchMode=false;
 
+  List<String> favorites =[];
+  List<String> history=[];
+  List<TabWebView> tabs=[];
   ValueNotifier<String> foundMatches =ValueNotifier<String>("0/0");
   TextEditingController searchBarTextController = TextEditingController();
   FocusNode searchBarFocusNode = FocusNode();
-  String searchEngine='google';
-  List<String> favorites =[];
-  List<String> history=[];
   ValueNotifier<bool> isFav = ValueNotifier(false);
-  List<TabWebView> tabs=[];
+  ValueNotifier<bool> isSecure = ValueNotifier(true);
   int currentTabIndex=0;
+
+  String searchEngine='google';
   String home="google.com";
+  bool isHttpHidden=true;
+  bool iswwwHidden=false;
 
 
   void init() {
     loadHistory();
     loadFavorites();
     loadEngine();
+    loadHomePage();
   }
 
 
@@ -71,19 +76,6 @@ class AppModel with ChangeNotifier{
     favorites=list;
   }
 
-  Future<void> loadEngine() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (!prefs.containsKey('engine')) {
-      return;
-    }
-    searchEngine = prefs.getString('engine') ??"google";
-  }
-  Future<void> saveEngine(String str) async {
-    final prefs = await SharedPreferences.getInstance();
-    prefs.setString('engine', str);
-    searchEngine=str;
-  }
-
   Future<void> loadTabs() async {
     final prefs = await SharedPreferences.getInstance();
     if (!prefs.containsKey('tabs')) {
@@ -100,7 +92,7 @@ class AppModel with ChangeNotifier{
     currentTabIndex=int.parse(tabsString[0]);
     tabsString.removeAt(0);
     for (String str in tabsString) {
-      newTab(url: removeHttp(str));
+      newTab(url: formatUrl(str.substring(0,str.indexOf(" ")), removeHttp: true, removeWww: true), incognito: str.substring(str.indexOf(" ")+1)=="true");
     }
   }
   Future<void> saveTabs({List<TabWebView>? list}) async {
@@ -110,20 +102,89 @@ class AppModel with ChangeNotifier{
     }
     List<String> tmp = [currentTabIndex.toString()];
     for(TabWebView tab in tabs){
-      tmp.add(tab.url);
+      tmp.add(tab.url+" "+tab.incognito.toString());
+    }
+    prefs.setStringList('tabs', tmp);
+  }
+
+  Future<void> tempSaveTabs({List<TabWebView>? list}) async{
+    final prefs = await SharedPreferences.getInstance();
+    if(list!=null){
+      tabs=list;
+    }
+    List<String> tmp = [currentTabIndex.toString()];
+    for(TabWebView tab in tabs){
+      tmp.add(tab.url+" "+tab.incognito.toString());
+      //url
+      //incognito
+      //screenshot?
+      //favicon?
+
+      //json
     }
     prefs.setStringList('tabs', tmp);
   }
 
 
 
+
+  Future<void> loadEngine() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!prefs.containsKey('engine')) {
+      return;
+    }
+    searchEngine = prefs.getString('engine') ??"google";
+  }
+  Future<void> saveEngine(String str) async {
+    final prefs = await SharedPreferences.getInstance();
+    prefs.setString('engine', str);
+    searchEngine=str;
+  }
+
+  Future<void> loadHomePage() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!prefs.containsKey('homePage')) {
+      return;
+    }
+    home = prefs.getString('homePage') ??"google.com";
+  }
+  Future<void> saveHomePage(String str) async {
+    final prefs = await SharedPreferences.getInstance();
+    prefs.setString('homePage', str);
+    home=str;
+  }
+
+  Future<void> loadIsHttpHidden() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!prefs.containsKey('isHttpHidden')) {
+      return;
+    }
+    isHttpHidden = prefs.getBool('isHttpHidden') ??true;
+  }
+  Future<void> saveIsHttpHidden(bool bool) async {
+    final prefs = await SharedPreferences.getInstance();
+    prefs.setBool('isHttpHidden', bool);
+    isHttpHidden=bool;
+  }
+
+  Future<void> loadIswwwHidden() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!prefs.containsKey('iswwwHidden')) {
+      return;
+    }
+    iswwwHidden = prefs.getBool('iswwwHidden') ??true;
+  }
+  Future<void> saveIswwwHidden(bool bool) async {
+    final prefs = await SharedPreferences.getInstance();
+    prefs.setBool('iswwwHidden', bool);
+    iswwwHidden=bool;
+  }
+
+
+
   void newTab({String? url, bool incognito=false}) {
-    if(url==null){
-      tabs.add(TabWebView(key: GlobalKey(), url:home, incognito: incognito));
-    }
-    else{
-      tabs.add(TabWebView(key: GlobalKey(), url:url, incognito: incognito));
-    }
+    tabs.add(TabWebView(key: GlobalKey(), url:url??home, incognito: incognito));
+    currentTabIndex=tabs.length-1;
     saveTabs();
 
   }
@@ -153,6 +214,10 @@ class AppModel with ChangeNotifier{
     }
   }
 
+  void isSecureUpdate({String? url}){
+    isSecure.value=(url??tabs[currentTabIndex].url).substring(0,8)=="https://";
+  }
+
   void clearFindWorld(){
     searchMode=false;
     tabs[currentTabIndex].controller.findAllAsync(find: "");
@@ -160,7 +225,7 @@ class AppModel with ChangeNotifier{
 
   void search(String str){
     var txt=formatToUrl(str);
-    txt = removeHttp(txt);
+    txt = formatUrl(txt, removeHttp: true, removeWww: false);
     tabs[currentTabIndex].controller.loadUrl(urlRequest: URLRequest(url: Uri.parse(txt)));
   }
 
@@ -178,15 +243,41 @@ class AppModel with ChangeNotifier{
     return str;
   }
 
-  String removeHttp(String str){
+  String formatUrlForText(String str){
+    return formatUrl(str, removeHttp: isHttpHidden, removeWww: iswwwHidden);
+  }
+  String formatUrl(String str, {bool removeHttp=true, bool removeWww=false}){
+    if(!removeHttp && !removeWww){
+      return str;
+    }
+    String withoutHttp=str;
+    bool isHttp=false;
+    bool isHttps=false;
     if (str.length>=7 && str.substring(0, 7)=='http://') {
-      return str.substring(7);
+      isHttp=true;
+      withoutHttp=str.substring(7);
+
     }
     else if (str.length>=8 && str.substring(0, 8) == 'https://') {
-      return str.substring(8);
+      isHttps=true;
+      withoutHttp=str.substring(8);
     }
-    return str;
+    if(!removeWww){
+      return withoutHttp;
+    }
+
+    String http = removeHttp?'':(isHttp?'http://':(isHttps?'https://':''));
+    if(withoutHttp.length>=4 && withoutHttp.substring(0,4)=="www."){
+
+      return http+withoutHttp.substring(4);
+    }
+    else{
+      return http+withoutHttp;
+    }
+
+
   }
+
 
 
 }
