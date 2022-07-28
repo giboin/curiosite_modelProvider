@@ -1,4 +1,4 @@
-import 'package:curiosite/TabWebView.dart';
+import 'package:curiosite/TabView.dart';
 import 'package:curiosite/pages/favoritesPage.dart';
 import 'package:curiosite/pages/settingsPage.dart';
 import 'package:curiosite/pages/tabsPage.dart';
@@ -8,17 +8,17 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import '../model/modelProvider.dart';
 import 'historyPage.dart';
 
-class WebPage extends StatefulWidget {
-  const WebPage({Key? key}) : super(key: key);
+class NavPage extends StatefulWidget {
+  const NavPage({Key? key}) : super(key: key);
 
   @override
-  _WebPageState createState() => _WebPageState();
+  _NavPageState createState() => _NavPageState();
 }
 
-class _WebPageState extends State<WebPage> {
+class _NavPageState extends State<NavPage> {
 
 
-  TabWebView get currentTab => ModelProvider.of(context).tabs[ModelProvider.of(context).currentTabIndex];
+  TabView get currentTab => ModelProvider.of(context).tabs[ModelProvider.of(context).currentTabIndex];
   get pcVersionIcon => currentTab.pcVersion?const Icon(Icons.check_box_rounded, color: Colors.black,):const Icon(Icons.check_box_outline_blank, color: Colors.black,);
 
   @override
@@ -46,7 +46,7 @@ class _WebPageState extends State<WebPage> {
   @override
   Widget build(BuildContext context) {
     if(ModelProvider.of(context).tabs.isEmpty){
-      return Container();
+      return const Center(child:Text(""));
     }
     return WillPopScope(
         onWillPop: () async {
@@ -60,9 +60,18 @@ class _WebPageState extends State<WebPage> {
             ModelProvider.of(context).searchBarFocusNode.unfocus();
             return false;
           }
-          if (await currentTab.controller.canGoBack()){
-            currentTab.controller.goBack();
-            return false;
+          if(currentTab.webOExplorerI.value==0) {
+            if (await currentTab.webController.canGoBack()) {
+              currentTab.webController.goBack();
+              return false;
+            }
+          }else{
+            if(await currentTab.explorerController.canGoBack()){
+              currentTab.explorerController.goBack();
+              ModelProvider.of(context).searchBarTextController.text=currentTab.explorerController.parentPath;
+              setState(() {});
+              return false;
+            }
           }
           return true;
         },
@@ -76,8 +85,6 @@ class _WebPageState extends State<WebPage> {
         )
     );
   }
-
-
 
 
 
@@ -125,20 +132,20 @@ class _WebPageState extends State<WebPage> {
 
               decoration: InputDecoration(suffixText: ModelProvider.of(context).foundMatches.value),
               onChanged: (string){
-                currentTab.controller.findAllAsync(find: string);
+                currentTab.webController.findAllAsync(find: string);
 
               },
             );}),
       actions: [
         IconButton(
             onPressed: (){
-              currentTab.controller.findNext(forward: false);
+              currentTab.webController.findNext(forward: false);
             },
             icon: const Icon(Icons.keyboard_arrow_up_rounded)
         ),
         IconButton(
             onPressed: (){
-              currentTab.controller.findNext(forward: true);
+              currentTab.webController.findNext(forward: true);
             },
             icon: const Icon(Icons.keyboard_arrow_down_rounded)
         ),
@@ -191,17 +198,20 @@ class _WebPageState extends State<WebPage> {
               setState(() {
                 ModelProvider.of(context).currentTabIndex=ModelProvider.of(context).tabs.length-1;
               });
+              ModelProvider.of(context).saveTabs();
               break;
             case 2:
               ModelProvider.of(context).newTab(incognito: true);
               setState(() {
                 ModelProvider.of(context).currentTabIndex=ModelProvider.of(context).tabs.length-1;
               });
+              ModelProvider.of(context).saveTabs();
               break;
             case 3: _openHistory(context); break;
             case 4: _openFavorites(context); break;
             case 5: _openSearchMode(); break;
             case 7: await _openSettings(context); break;
+            case 8: _changeMode(context);break;
           }
         },
         itemBuilder: (context)=>[
@@ -212,13 +222,13 @@ class _WebPageState extends State<WebPage> {
                   ElevatedButton(
                       child:const Icon(Icons.arrow_forward),
                       onPressed: (){
-                        currentTab.controller.goForward();
+                        currentTab.webController.goForward();
                       }
                   ),
                   MaterialButton(
                       child:const Icon(Icons.refresh),
                       onPressed: (){
-                        currentTab.controller.reload();
+                        currentTab.webController.reload();
                         Navigator.pop(context);
                       }
                   ),
@@ -228,8 +238,8 @@ class _WebPageState extends State<WebPage> {
                           valueListenable:ModelProvider.of(context).isFav,
                           builder: (context, value, _) {return Icon(ModelProvider.of(context).isFav.value?Icons.star:Icons.star_border);}),
                       onPressed: ()async{
-                        String title = await currentTab.controller.getTitle()??"";
-                        String url = (await currentTab.controller.getUrl()).toString();
+                        String title = await currentTab.webController.getTitle()??"";
+                        String url = (await currentTab.webController.getUrl()).toString();
                         Navigator.pop(context);
                         for(String str in ModelProvider.of(context).favorites) {
                           if (str.contains("\n$url.")) {
@@ -385,12 +395,12 @@ class _WebPageState extends State<WebPage> {
               value:6,
               onTap: (){
                 currentTab.pcVersion=!currentTab.pcVersion;
-                currentTab.controller.setOptions(options: InAppWebViewGroupOptions(
+                currentTab.webController.setOptions(options: InAppWebViewGroupOptions(
                     crossPlatform: InAppWebViewOptions(
                         preferredContentMode: currentTab.pcVersion? UserPreferredContentMode.DESKTOP : UserPreferredContentMode.MOBILE
                     )
                 ),);
-                currentTab.controller.reload();
+                currentTab.webController.reload();
               },
               child: Row(
                 children: [
@@ -412,28 +422,46 @@ class _WebPageState extends State<WebPage> {
               ],
             ),
           ),
+          const PopupMenuItem(
+              value:8,
+              child: Card(
+                child: ListTile(
+                    title:Text("change mode")
+                ),
+              )
+          )
         ]
 
     );
   }
 
+  Future<void> _changeMode(BuildContext ctx) async {
+    if(currentTab.webOExplorerI.value==0){
+      currentTab.webOExplorerI.value=1;
+      ModelProvider.of(context).searchBarTextController.text=currentTab.explorerController.currentPath;
+      setState(() {});
+    }else{
+      currentTab.webOExplorerI.value=0;
+      ModelProvider.of(context).searchBarTextController.text=currentTab.url;
+    }
+  }
 
   Future<void> _openSettings(BuildContext ctx) async {
-    await Navigator.push(ctx, MaterialPageRoute(builder: (context) => SettingsPage()));
+    await Navigator.push(ctx, MaterialPageRoute(builder: (context) => const SettingsPage()));
   }
 
   Future<void> _openHistory(BuildContext ctx) async {
     await Navigator.push(ctx, MaterialPageRoute(builder: (context) => const HistoryPage())).then((value) {
       if(value!=null){
-        currentTab.controller.loadUrl(urlRequest: URLRequest(url: Uri.parse(value[0])));
+        currentTab.webController.loadUrl(urlRequest: URLRequest(url: Uri.parse(value[0])));
       }
     });
   }
 
   Future<void> _openFavorites(BuildContext ctx) async {
-    await Navigator.push(ctx, MaterialPageRoute(builder: (context) => FavoritesPage())).then((value){
+    await Navigator.push(ctx, MaterialPageRoute(builder: (context) => const FavoritesPage())).then((value){
       if(value!=null){
-        currentTab.controller.loadUrl(urlRequest: URLRequest(url: Uri.parse(value[0])));
+        currentTab.webController.loadUrl(urlRequest: URLRequest(url: Uri.parse(value[0])));
       }
       setState(() {
         ModelProvider.of(context).isFavUpdate();
@@ -444,8 +472,12 @@ class _WebPageState extends State<WebPage> {
   Future<void> _openTabs(BuildContext ctx) async {
     await Navigator.push(ctx, MaterialPageRoute(builder: (context) => const TabsPage())).then((value){
       setState(() {
-        ModelProvider.of(context).searchBarTextController.text=ModelProvider.of(context).formatUrlForText(currentTab.url);
+        ModelProvider.of(context).changeBarText(currentTab.webOExplorerI.value==0
+            ? ModelProvider.of(context).formatUrlForText(currentTab.url)
+            : currentTab.explorerController.currentPath);
         ModelProvider.of(context).isFavUpdate();
+        ModelProvider.of(context).isSecureUpdate();
+        ModelProvider.of(context).saveTabs();
       });
     });
   }

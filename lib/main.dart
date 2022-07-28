@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:curiosite/pages/favoritesPage.dart';
 import 'package:curiosite/pages/historyPage.dart';
 import 'package:curiosite/pages/settingsPage.dart';
-import 'package:curiosite/pages/webPage.dart';
+import 'package:curiosite/pages/NavPage.dart';
 import 'package:flutter/material.dart';
 
 import 'model/modelProvider.dart';
@@ -37,7 +37,7 @@ class MyApp extends StatelessWidget {
       model: model,
       child: const MaterialApp(
         title: 'Curiosité',
-        home: WebPage(),
+        home: NavPage(),
       ),
     );
   }

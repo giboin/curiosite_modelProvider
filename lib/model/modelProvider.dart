@@ -1,4 +1,4 @@
-import 'package:curiosite/TabWebView.dart';
+import 'package:curiosite/TabView.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
@@ -28,7 +28,7 @@ class AppModel with ChangeNotifier{
 
   List<String> favorites =[];
   List<String> history=[];
-  List<TabWebView> tabs=[];
+  List<TabView> tabs=[];
   ValueNotifier<String> foundMatches =ValueNotifier<String>("0/0");
   TextEditingController searchBarTextController = TextEditingController();
   FocusNode searchBarFocusNode = FocusNode();
@@ -95,25 +95,27 @@ class AppModel with ChangeNotifier{
       newTab(url: formatUrl(str.substring(0,str.indexOf(" ")), removeHttp: true, removeWww: true), incognito: str.substring(str.indexOf(" ")+1)=="true");
     }
   }
-  Future<void> saveTabs({List<TabWebView>? list}) async {
+
+  // if list is null, just saves the current to the database, and if not it also instanciates tabs with list
+  Future<void> saveTabs({List<TabView>? list}) async {
     final prefs = await SharedPreferences.getInstance();
     if(list!=null){
       tabs=list;
     }
     List<String> tmp = [currentTabIndex.toString()];
-    for(TabWebView tab in tabs){
+    for(TabView tab in tabs){
       tmp.add(tab.url+" "+tab.incognito.toString());
     }
-    prefs.setStringList('tabs', tmp);
+      prefs.setStringList('tabs', tmp);
   }
 
-  Future<void> tempSaveTabs({List<TabWebView>? list}) async{
+  Future<void> tempSaveTabs({List<TabView>? list}) async{
     final prefs = await SharedPreferences.getInstance();
     if(list!=null){
       tabs=list;
     }
     List<String> tmp = [currentTabIndex.toString()];
-    for(TabWebView tab in tabs){
+    for(TabView tab in tabs){
       tmp.add(tab.url+" "+tab.incognito.toString());
       //url
       //incognito
@@ -183,10 +185,7 @@ class AppModel with ChangeNotifier{
 
 
   void newTab({String? url, bool incognito=false}) {
-    tabs.add(TabWebView(key: GlobalKey(), url:url??home, incognito: incognito));
-    currentTabIndex=tabs.length-1;
-    saveTabs();
-
+    tabs.add(TabView(key: GlobalKey(), url:url??home, incognito: incognito, webOExplorerI: ValueNotifier(0),));
   }
 
   void removeTab(int index){
@@ -202,6 +201,14 @@ class AppModel with ChangeNotifier{
       currentTabIndex=0;
     }
     saveTabs();
+  }
+
+  bool changeBarText(String str){
+    if(!searchBarFocusNode.hasFocus){
+      searchBarTextController.text=str;
+      return true;
+    }
+    return false;
   }
 
   void isFavUpdate({String? url}){
@@ -220,13 +227,13 @@ class AppModel with ChangeNotifier{
 
   void clearFindWorld(){
     searchMode=false;
-    tabs[currentTabIndex].controller.findAllAsync(find: "");
+    tabs[currentTabIndex].webController.findAllAsync(find: "");
   }
 
   void search(String str){
     var txt=formatToUrl(str);
     txt = formatUrl(txt, removeHttp: true, removeWww: false);
-    tabs[currentTabIndex].controller.loadUrl(urlRequest: URLRequest(url: Uri.parse(txt)));
+    tabs[currentTabIndex].webController.loadUrl(urlRequest: URLRequest(url: Uri.parse(txt)));
   }
 
   String formatToUrl(String str){
