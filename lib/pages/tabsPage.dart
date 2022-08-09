@@ -164,7 +164,12 @@ class _TabsPageState extends State<TabsPage> {
                                     onPressed: (){
                                       //test();
                                       setState(() {
-                                        ModelProvider.of(context).removeTab(index);
+                                        if(tabs.length>1) {
+                                          ModelProvider.of(context).removeTab(index);
+                                        }else{
+                                          ModelProvider.of(context).search(ModelProvider.of(context).home);
+                                          Navigator.pop(context);
+                                        }
                                       });
                                     },
                                     icon: const Icon(Icons.clear, color: Colors.white,)

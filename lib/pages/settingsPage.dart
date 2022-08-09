@@ -109,6 +109,41 @@ class _ParamState extends State<SettingsPage> {
               )
             ],
           )
+      ),
+      ListTile(
+        leading: IconButton(
+          icon:const Icon(Icons.info),
+          onPressed: (){
+            showDialog(
+                context: context,
+                builder: (ctx){
+                  return const AlertDialog(
+                      content:Text("Les cookies tiers (third party cookies en anglais) sont des cookies qui ne sont pas déposés par le site consulté mais par un partenaire technologique qui affiche un composant sur le site, en général pour de la publicité. Ces cookies sont de plus en plus critiqués pour des raisons de confidentialité, google est d'ailleurs en passe de les interdire sur chrome.")
+                  );
+                }
+            );
+          },
+        ),
+        title: const Text("autoriser les cookies tiers"),
+        trailing:Checkbox(
+            value: ModelProvider.of(context).enableThirdPartyCookies,
+            onChanged: (value){
+              setState(() {
+                ModelProvider.of(context).saveEnableThirdPartyCookies(value??false);
+              });
+            }),
+      ),
+      ListTile(
+        leading: Icon(Icons.arrow_back),
+        title: Text("afficher le bouton retour"),
+        trailing: Checkbox(
+          value: ModelProvider.of(context).enableBackButton,
+          onChanged: (value){
+            setState(() {
+              ModelProvider.of(context).saveEnableBackButton(value??false);
+            });
+          },
+        ),
       )
     ];
 

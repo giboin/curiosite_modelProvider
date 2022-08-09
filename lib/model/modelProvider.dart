@@ -34,12 +34,19 @@ class AppModel with ChangeNotifier{
   FocusNode searchBarFocusNode = FocusNode();
   ValueNotifier<bool> isFav = ValueNotifier(false);
   ValueNotifier<bool> isSecure = ValueNotifier(true);
-  int currentTabIndex=0;
+  ValueNotifier<int> currentTabIndexNotifier=ValueNotifier(0);
+
+  int get currentTabIndex=>currentTabIndexNotifier.value;
+  set currentTabIndex(int index){
+    currentTabIndexNotifier.value=index;
+  }
 
   String searchEngine='google';
   String home="google.com";
   bool isHttpHidden=true;
   bool iswwwHidden=false;
+  bool enableThirdPartyCookies=false;
+  bool enableBackButton=false;
 
 
   void init() {
@@ -47,6 +54,10 @@ class AppModel with ChangeNotifier{
     loadFavorites();
     loadEngine();
     loadHomePage();
+    loadEnableThirdPartyCookies();
+    loadEnableBackButton();
+    loadIsHttpHidden();
+    loadIswwwHidden();
   }
 
 
@@ -180,6 +191,32 @@ class AppModel with ChangeNotifier{
     final prefs = await SharedPreferences.getInstance();
     prefs.setBool('iswwwHidden', bool);
     iswwwHidden=bool;
+  }
+
+  Future<void> loadEnableThirdPartyCookies() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!prefs.containsKey('enableThirdPartyCookies')) {
+      return;
+    }
+    enableThirdPartyCookies = prefs.getBool('enableThirdPartyCookies') ??true;
+  }
+  Future<void> saveEnableThirdPartyCookies(bool bool) async {
+    final prefs = await SharedPreferences.getInstance();
+    prefs.setBool('enableThirdPartyCookies', bool);
+    enableThirdPartyCookies=bool;
+  }
+
+  Future<void> loadEnableBackButton() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!prefs.containsKey('enableBackButton')) {
+      return;
+    }
+    enableBackButton = prefs.getBool('enableBackButton') ??true;
+  }
+  Future<void> saveEnableBackButton(bool bool) async {
+    final prefs = await SharedPreferences.getInstance();
+    prefs.setBool('enableBackButton', bool);
+    enableBackButton=bool;
   }
 
 

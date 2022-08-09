@@ -3,9 +3,9 @@ import 'package:curiosite/ExplorerView/ExplorerView.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:intl/intl.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'ExplorerView/ExplorerController.dart';
+import 'LongPressAlertDialog.dart';
 import 'model/modelProvider.dart';
 
 class TabView extends StatefulWidget {
@@ -49,8 +49,54 @@ class _TabViewState extends State<TabView> {
                   children: [
                     InAppWebView(
                       initialOptions: InAppWebViewGroupOptions(
+                          crossPlatform:InAppWebViewOptions(
+                            incognito: widget.incognito,
+                          ),
                           android: AndroidInAppWebViewOptions(
-                              useHybridComposition: true)),
+                              useHybridComposition: true,
+                              thirdPartyCookiesEnabled: ModelProvider.of(context).enableThirdPartyCookies
+                          )
+                      ),
+                      onLongPressHitTestResult:(controller, InAppWebViewHitTestResult hitTestResult) async {
+                        if (LongPressAlertDialog.HIT_TEST_RESULT_SUPPORTED
+                            .contains(hitTestResult.type)) {
+
+                          var requestFocusNodeHrefResult = await widget.webController.requestFocusNodeHref();
+
+                          if (requestFocusNodeHrefResult != null) {
+                            showDialog(
+                              context: context,
+                              builder: (context) {
+                                return LongPressAlertDialog(
+                                  hitTestResult: hitTestResult,
+                                  requestFocusNodeHrefResult: requestFocusNodeHrefResult,
+                                );
+                              },
+                            ).then((value) {
+                              switch(value['action']){
+                                case ('newTab'):{
+                                  ModelProvider.of(context).newTab(url:value['url']);
+                                  ModelProvider.of(context).currentTabIndex=ModelProvider.of(context).tabs.length-1;
+                                  ModelProvider.of(context).saveTabs();
+                                  ModelProvider.of(context).isSecureUpdate();
+                                  ModelProvider.of(context).isFavUpdate();
+                                }
+                                break;
+                                case('newTabInc'):{
+                                  ModelProvider.of(context).newTab(url:value['url'],incognito: true);
+                                  ModelProvider.of(context).currentTabIndex=ModelProvider.of(context).tabs.length-1;
+                                  ModelProvider.of(context).saveTabs();
+                                }
+                                break;
+                                default:{
+
+                                }
+                              }
+                            }
+                            );
+                          }
+                        }
+                      },
                       onLoadStart: (_webViewController, uri) {
                         widget.url=uri.toString();
                         if(ModelProvider.of(context).tabs[ModelProvider.of(context).currentTabIndex].key==widget.key){

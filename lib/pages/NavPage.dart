@@ -4,6 +4,7 @@ import 'package:curiosite/pages/settingsPage.dart';
 import 'package:curiosite/pages/tabsPage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../model/modelProvider.dart';
 import 'historyPage.dart';
@@ -20,6 +21,8 @@ class _NavPageState extends State<NavPage> {
 
   TabView get currentTab => ModelProvider.of(context).tabs[ModelProvider.of(context).currentTabIndex];
   get pcVersionIcon => currentTab.pcVersion?const Icon(Icons.check_box_rounded, color: Colors.black,):const Icon(Icons.check_box_outline_blank, color: Colors.black,);
+
+  bool enableBackButton=false;
 
   @override
   void didChangeDependencies() {
@@ -40,7 +43,9 @@ class _NavPageState extends State<NavPage> {
   void initModel()async{
     ModelProvider.of(context).init();
     await ModelProvider.of(context).loadTabs();
-    setState(() {});
+    setState(() {
+      enableBackButton=ModelProvider.of(context).enableBackButton;
+    });
   }
 
   @override
@@ -49,39 +54,22 @@ class _NavPageState extends State<NavPage> {
       return const Center(child:Text(""));
     }
     return WillPopScope(
-        onWillPop: () async {
-          if(ModelProvider.of(context).searchMode){
-            setState(() {
-              ModelProvider.of(context).clearFindWorld();
-            });
-            return false;
-          }
-          if(ModelProvider.of(context).searchBarFocusNode.hasFocus){
-            ModelProvider.of(context).searchBarFocusNode.unfocus();
-            return false;
-          }
-          if(currentTab.webOExplorerI.value==0) {
-            if (await currentTab.webController.canGoBack()) {
-              currentTab.webController.goBack();
-              return false;
-            }
-          }else{
-            if(await currentTab.explorerController.canGoBack()){
-              currentTab.explorerController.goBack();
-              ModelProvider.of(context).searchBarTextController.text=currentTab.explorerController.parentPath;
-              setState(() {});
-              return false;
-            }
-          }
-          return true;
+        onWillPop: () {
+          return onPop();
+
         },
-        child:Scaffold(
-            appBar: appBar(context),
-            body: IndexedStack(
-              index: ModelProvider.of(context).currentTabIndex,
-              children: ModelProvider.of(context).tabs.map((webViewTab) {
-                return webViewTab;
-              }).toList(),)
+        child:ValueListenableBuilder<int>(
+          valueListenable: ModelProvider.of(context).currentTabIndexNotifier,
+          builder: (ctx, index, widget){
+            return Scaffold(
+                appBar: appBar(context),
+                body: IndexedStack(
+                  index: index,
+                  children: ModelProvider.of(context).tabs.map((webViewTab) {
+                    return webViewTab;
+                  }).toList(),)
+            );
+          },
         )
     );
   }
@@ -90,6 +78,46 @@ class _NavPageState extends State<NavPage> {
 
   PreferredSizeWidget appBar(BuildContext context){
     if(!ModelProvider.of(context).searchMode){
+      if(enableBackButton){
+        return AppBar(
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: (){
+                onPop();
+              },
+            ),
+            backgroundColor: currentTab.incognito?Colors.grey[800]:Colors.blue,
+            title: Container(
+              width: double.infinity,
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(5)),
+
+              child: Center(
+                child: searchBar(),
+              ),
+            ),
+            actions: <Widget>[
+              InkWell(
+                onTap: ((){
+                  _openTabs(context);
+                }),
+                child: Center(
+                  child: Container(
+                    height: 25,
+                    width: 25,
+                    decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(5),
+                        border: Border.all(color: Colors.white, width: 2.5)
+                    ),
+                    child:Center(
+                        child:Text(ModelProvider.of(context).tabs.length.toString())
+                    ),
+                  ),
+                ),
+              ),
+              appbarMenu(context),
+            ]
+        );
+      }
       return AppBar(
           backgroundColor: currentTab.incognito?Colors.grey[800]:Colors.blue,
           title: Container(
@@ -175,11 +203,36 @@ class _NavPageState extends State<NavPage> {
               ModelProvider.of(context).searchBarFocusNode.requestFocus();
             },
           ),
-          prefixIcon: ValueListenableBuilder<bool>(
-              valueListenable:ModelProvider.of(context).isSecure,
-              builder: (context, value, _) {
-                return ModelProvider.of(context).isSecure.value?const Icon(Icons.lock, color:Colors.green,):const Icon(Icons.lock_open, color: Colors.black,);
-              }
+          prefixIcon: IconButton(
+            icon:ValueListenableBuilder<bool>(
+                valueListenable:ModelProvider.of(context).isSecure,
+                builder: (context, value, _) {
+                  return ModelProvider.of(context).isSecure.value?const Icon(Icons.lock, color:Colors.green,):const Icon(Icons.lock_open, color: Colors.black,);
+                }
+            ),
+            onPressed: (){
+              showDialog(
+                  context: context,
+                  builder: (ctx){
+                    return AlertDialog(
+                        title: Text("Que signifie cette icône?"),
+                        content: SingleChildScrollView(
+                          child: SizedBox(
+                            width: double.maxFinite,
+                            child: Column(children: const [
+                              Icon(Icons.lock_open, color: Colors.black,),
+                              Divider(height: 20,color: Colors.white,),
+                              Text("Si vous voyez cette icône, alors le site que vous consultez utilise le protocole http, et non sa version sécurisée https. Cela signifie que n'importe qui peut lire les données que vous échangez avec le site, notamment les mots de passe, données personelles et données banquaires. Ne faites jamais d'achats et ne partagez jamais de mots de passe sur un site non sécurisé."),
+                              Divider(height: 50, color: Colors.grey,),
+                              Icon(Icons.lock, color: Colors.green,),
+                              Divider(height: 20,color: Colors.white,),
+                              Text("Si vous voyez cette icône, alors le site que vous consultez utilise le protocole https, qui crypte vos données entre leur envoie par votre appareil et leur lecture par le site. Une personne lambda ne peut pas lire les données que vous échangez avec le site. Faites tout de même toujours attention avec les données que vous envoyez sur internet.")
+                            ],)
+                          ),
+                        ));
+                  }
+              );
+            },
           ),
           hintText: 'Search...',
           border: InputBorder.none
@@ -447,7 +500,11 @@ class _NavPageState extends State<NavPage> {
   }
 
   Future<void> _openSettings(BuildContext ctx) async {
-    await Navigator.push(ctx, MaterialPageRoute(builder: (context) => const SettingsPage()));
+    await Navigator.push(ctx, MaterialPageRoute(builder: (context) => const SettingsPage())).then((value){
+      setState(() {
+        enableBackButton=ModelProvider.of(context).enableBackButton;
+      });
+    });
   }
 
   Future<void> _openHistory(BuildContext ctx) async {
@@ -488,5 +545,32 @@ class _NavPageState extends State<NavPage> {
     });
   }
 
+
+  Future<bool> onPop()async{
+    if(ModelProvider.of(context).searchMode){
+      setState(() {
+      ModelProvider.of(context).clearFindWorld();
+    });
+    return false;
+  }
+    if(ModelProvider.of(context).searchBarFocusNode.hasFocus){
+      ModelProvider.of(context).searchBarFocusNode.unfocus();
+      return false;
+    }
+    if(currentTab.webOExplorerI.value==0) {
+      if (await currentTab.webController.canGoBack()) {
+    currentTab.webController.goBack();
+    return false;
+    }
+    }else{
+    if(currentTab.explorerController.canGoBack()){
+    currentTab.explorerController.goBack();
+    ModelProvider.of(context).searchBarTextController.text=currentTab.explorerController.parentPath;
+    setState(() {});
+    return false;
+    }
+    }
+    return true;
+  }
 
 }
