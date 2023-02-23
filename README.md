@@ -1,3 +1,3 @@
 # curiosité
 
-A browser that is also a file explorer
+old version of the project, new one is here: https://github.com/giboin/curiosite.git
